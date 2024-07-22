@@ -1,6 +1,5 @@
 import os
 import sys
-from ast import *
 from util import get_spark_session
 from process import *
 import datetime
@@ -12,7 +11,8 @@ def main():
     source_table = str(sys.argv[1])
     target_table = str(sys.argv[2])
     filter_condition = str(sys.argv[3])
-    exclude_column_list =list(literal_eval(sys.argv[4]))
+    exclude_column_list =str(sys.argv[4]).split(",")
+    print(exclude_column_list)
     target_bucket = str(sys.argv[5])
 
     spark = get_spark_session('Recon_'+source_table.replace(".","_"))
@@ -29,7 +29,3 @@ def main():
 
     recon_df.printSchema()
     write_dataframe(recon_df,target_bucket,"accuracy",source_table,"parquet","False")
-
-
-if __name__ == '__main__':
-    main()

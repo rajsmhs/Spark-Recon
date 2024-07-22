@@ -29,3 +29,7 @@ def main():
 
     recon_df.printSchema()
     write_dataframe(recon_df,target_bucket,"accuracy",source_table,"parquet","False")
+
+
+if __name__ == '__main__':
+    main()

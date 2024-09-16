@@ -20,14 +20,16 @@ def main():
     col_list = get_column_list(source_table,filter_condition,exclude_column_list,spark)
     print(col_list)
 
-    src_df,target_df,mismatched_df = compare_source_target(source_table,target_table,col_list,filter_condition,spark)
-
+    src_df,target_df,mismatched_df = compare_source_target_1(source_table,target_table,col_list,filter_condition,spark)
+    mismatched_df.printSchema()
 
     write_dataframe(mismatched_df,target_bucket,"mismatched_records",source_table,"json","True")
-
-    recon_df = accuracy_summary_validation(src_df,target_df,mismatched_df,spark)
+    
+    column_diff=compare_schemas(source_table,target_table,filter_condition,col_list,spark)
+    recon_df = accuracy_summary_validation(src_df,target_df,mismatched_df,spark,column_diff)
 
     recon_df.printSchema()
+    recon_df.show()
     write_dataframe(recon_df,target_bucket,"accuracy",source_table,"parquet","False")
 
 

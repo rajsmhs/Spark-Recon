@@ -1,0 +1,214 @@
+[
+    {
+      "name":"header",
+      "type" :[ 
+        "null",
+        {
+          "type":"record",
+          "name":"RventMeshHeader",
+          "fields":[
+            {
+              "name": "eventUUID",
+              "type": "string",
+              "doc": "A unique identifier for this particular event. The event producer allocates the eventId. Has to be in UUID v4 format (i.e. 535c5d5d-fc48-4205-b85c-1a956e9d1234)"
+            },
+            {
+              "name": "subject",
+              "type": {
+                "type": "record",
+                "name": "EventWebSubject",
+                "doc": "A party can have multiple records in OCV. This and ocvID would uniquely identify a Party Record within OCV",
+                "fields": [
+                  {
+                    "name": "subjectType",
+                    "type": "string",
+                    "doc": "The type of identifier, such as CRN, or OCV Id, or CARCIS1d"
+                  },
+                  {
+                    "name": "subjectId",
+                    "type": "string",
+                    "doc": "The actual value of the identifier - that would be the actual CRN, for example"
+                  }
+                ]
+              }
+            },
+            {
+              "name": "occurrenceDateTime",
+              "type": "long",
+              "doc": "The date and time, to millisecond precision, that this event occurred"
+            },
+            {
+              "name": "traceId",
+              "type": "string"
+            },
+            {
+              "name": "spanId",
+              "type": "string"
+            },
+            {
+              "name": "source",
+              "type": "string",
+              "doc": "The service identifier that produced the event"
+            },
+            {
+              "name": "hierarchy",
+              "type": "string",
+              "doc": "Business Event Type Hierarchy, i.e. AU/RETAIL/CARDS"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name":"contactPerson",
+      "type" : [
+        "null",
+        {
+          "type":"record",
+          "name":"eventmeshContactPerson",
+          "fields":[
+            {"name": "globalID", "type": ["null", "string"]},
+            {"name": "eventType", "type": ["null", "string"]},
+            {"name": "firstName", "type": ["null", "string"]},
+            {"name": "lastName", "type": ["null", "string"]},
+            {"name": "middleInitials", "type": ["null", "string"]},
+            {"name": "title", "type": ["null", "string"]},
+            {"name": "honorificTitle", "type": ["null", "string"]},
+            {"name": "language", "type": ["null", "string"]},
+            {
+              "name": "preferredANZContactPoints",
+              "type": ["null", {
+                "type": "array",
+                "items": {
+                  "type": "record",
+                  "name": "ANZContactPoint",
+                  "fields": [
+                    {
+                      "name": "user",
+                      "type": ["null", {
+                        "type": "record",
+                        "name": "User",
+                        "fields": [
+                          {"name": "firstName", "type": ["null", "string"]},
+                          {"name": "lastName", "type": ["null", "string"]},
+                          {"name": "lanId", "type": ["null", "string"]},
+                          {"name": "email", "type": ["null", "string"]}
+                        ]
+                      }]
+                    }
+                  ]
+                }
+              }]
+            },
+            {"name": "position", "type": ["null", "string"]},
+              {
+                "name": "company",
+                "type": ["null", {
+                  "type": "record",
+                  "name": "Company",
+                  "fields": [
+                    {"name": "name", "type": ["null", "string"]},
+                    {"name": "globalID", "type": ["null", "string"]},
+                    {"name": "customerType", "type": ["null", "string"]},
+                    {"name": "groupICISID", "type": ["null", "string"]}
+                  ]
+                }]
+              },
+              {
+                "name": "personalInterests",
+                "type": ["null", {
+                  "type": "array",
+                  "items": {
+                    "type": "record",
+                    "name": "PersonalInterest",
+                    "fields": [
+                      {"name": "item", "type": ["null", "string"]}
+                    ]
+                  }
+                }]
+              },
+              {
+                "name": "industryInterests",
+                "type": ["null", {
+                  "type": "array",
+                  "items": {
+                    "type": "record",
+                    "name": "IndustryInterest",
+                    "fields": [
+                      {"name": "item", "type": ["null", "string"]}
+                    ]
+                  }
+                }]
+              },
+              {
+                "name": "iconicEventProgramAlignment",
+                "type": ["null", {
+                  "type": "array",
+                  "items": {
+                    "type": "record",
+                    "name": "IconicEventProgram",
+                    "fields": [
+                      {"name": "item", "type": ["null", "string"]}
+                    ]
+                  }
+                }]
+              },
+              {"name": "notes", "type": ["null", "string"]},
+              {
+                "name": "communications",
+                "type": ["null", {
+                  "type": "record",
+                  "name": "Communications",
+                  "fields": [
+                    {
+                      "name": "email",
+                      "type": ["null", {
+                        "type": "array",
+                        "items": {
+                          "type": "record",
+                          "name": "Email",
+                          "fields": [
+                            {"name": "description", "type": ["null", "string"]},
+                            {"name": "address", "type": ["null", "string"]}
+                          ]
+                        }
+                      }]
+                    },
+                    {
+                      "name": "phoneNumber",
+                      "type": ["null", {
+                        "type": "array",
+                        "items": {
+                          "type": "record",
+                          "name": "PhoneNumber",
+                          "fields": [
+                            {"name": "description", "type": ["null", "string"]},
+                            {"name": "country", "type": ["null", "string"]},
+                            {"name": "number", "type": ["null", "string"]},
+                            {"name": "extension", "type": ["null", "string"]}
+                          ]
+                        }
+                      }]
+                    },
+                    {
+                      "name": "website",
+                      "type": ["null", {
+                        "type": "array",
+                        "items": {
+                          "type": "record",
+                          "name": "Website",
+                          "fields": [
+                            {"name": "description", "type": ["null", "string"]},
+                            {"name": "address", "type": ["null", "string"]}
+                          ]
+                        }
+                      }]
+                    }
+                  ]
+                }]
+              }
+          ]
+        }
+      ]
+    }
+  ]

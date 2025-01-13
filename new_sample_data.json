@@ -1,0 +1,89 @@
+{
+    "order_id": "ORD123456",
+    "customer_info": {
+      "id": "CUST789",
+      "name": "John Doe",
+      "contact": {
+        "email": "john.doe@example.com",
+        "phone": "+1-555-123-4567",
+        "address": {
+          "street": "123 Main St",
+          "city": "Anytown",
+          "state": "CA",
+          "zip": "12345",
+          "country": "USA"
+        }
+      },
+      "preferences": {
+        "favorite_categories": ["electronics", "books", "sports"],
+        "communication_preferences": {
+          "email": true,
+          "sms": false,
+          "push_notifications": true
+        }
+      }
+    },
+    "order_details": {
+      "date": "2023-06-15T10:30:00Z",
+      "total_amount": 299.99,
+      "items": [
+        {
+          "product_id": "PROD001",
+          "name": "Smartphone",
+          "quantity": 1,
+          "price": 249.99,
+          "specifications": {
+            "brand": "TechX",
+            "model": "Galaxy S21",
+            "color": "Phantom Black",
+            "storage": "128GB",
+            "features": ["5G", "Wireless Charging", "Water Resistant"]
+          }
+        },
+        {
+          "product_id": "PROD002",
+          "name": "Phone Case",
+          "quantity": 2,
+          "price": 25.00,
+          "specifications": {
+            "brand": "CaseMax",
+            "color": "Clear",
+            "material": "Silicone",
+            "compatibility": ["Galaxy S21", "Galaxy S20"]
+          }
+        }
+      ],
+      "shipping": {
+        "method": "Express",
+        "tracking_number": "SHIP987654321",
+        "estimated_delivery": "2023-06-18",
+        "address": {
+          "street": "456 Elm St",
+          "city": "Other City",
+          "state": "NY",
+          "zip": "67890",
+          "country": "USA"
+        }
+      },
+      "payment": {
+        "method": "Credit Card",
+        "transaction_id": "TXN1234567890",
+        "card_info": {
+          "last_four": "1234",
+          "expiry": "12/25",
+          "card_type": "Visa"
+        }
+      }
+    },
+    "metadata": {
+      "source": "mobile_app",
+      "version": "2.3.0",
+      "session_id": "SESSION_ABC123",
+      "user_agent": {
+        "browser": "Mobile Safari",
+        "os": "iOS 15.5",
+        "device": "iPhone 13"
+      }
+    }
+  }
+  

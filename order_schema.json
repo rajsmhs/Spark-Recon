@@ -1,0 +1,55 @@
+{
+  "type": "record",
+  "name": "Order",
+  "fields": [
+    {"name": "orderId", "type": "string"},
+    {"name": "customerId", "type": "string"},
+    {"name": "orderDate", "type": "long"},
+    {
+      "name": "shippingAddress",
+      "type": {
+        "type": "record",
+        "name": "Address",
+        "fields": [
+          {"name": "street", "type": "string"},
+          {"name": "city", "type": "string"},
+          {"name": "state", "type": "string"},
+          {"name": "zipCode", "type": "string"}
+        ]
+      }
+    },
+    {
+      "name": "items",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "OrderItem",
+          "fields": [
+            {"name": "productId", "type": "string"},
+            {"name": "productName", "type": "string"},
+            {"name": "quantity", "type": "long"},
+            {"name": "unitPrice", "type": "string"}
+          ]
+        }
+      }
+    },
+    {"name": "totalAmount", "type": "string"},
+    {
+      "name": "paymentInfo",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "PaymentInfo",
+          "fields": [
+            {"name": "paymentMethod", "type": {"type": "enum", "name": "PaymentMethod", "symbols": ["CREDIT_CARD", "DEBIT_CARD", "PAYPAL", "CASH_ON_DELIVERY"]}},
+            {"name": "transactionId", "type": ["null", "string"]}
+          ]
+        }
+      ],
+      "default": null
+    },
+    {"name": "status", "type": {"type": "enum", "name": "OrderStatus", "symbols": ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]}}
+  ]
+}

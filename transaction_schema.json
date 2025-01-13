@@ -1,0 +1,62 @@
+{
+    "type": "record",
+    "name": "BankAccount",
+    "fields": [
+      {"name": "account_number", "type": "string"},
+      {"name": "account_type", "type": {"type": "enum", "name": "AccountType", "symbols": ["CHECKING", "SAVINGS", "MONEY_MARKET", "CERTIFICATE_OF_DEPOSIT"]}},
+      {"name": "customer", "type": {
+        "type": "record",
+        "name": "Customer",
+        "fields": [
+          {"name": "customer_id", "type": "string"},
+          {"name": "first_name", "type": "string"},
+          {"name": "last_name", "type": "string"},
+          {"name": "date_of_birth", "type": "string"},
+          {"name": "ssn", "type": "string"},
+          {"name": "contact", "type": {
+            "type": "record",
+            "name": "ContactInfo",
+            "fields": [
+              {"name": "email", "type": "string"},
+              {"name": "phone", "type": "string"},
+              {"name": "address", "type": {
+                "type": "record",
+                "name": "Address",
+                "fields": [
+                  {"name": "street", "type": "string"},
+                  {"name": "city", "type": "string"},
+                  {"name": "state", "type": "string"},
+                  {"name": "zip", "type": "string"},
+                  {"name": "country", "type": "string"}
+                ]
+              }}
+            ]
+          }}
+        ]
+      }},
+      {"name": "balance", "type": "string"},
+      {"name": "currency", "type": "string"},
+      {"name": "open_date", "type": "long"},
+      {"name": "last_activity_date", "type": "long"},
+      {"name": "status", "type": {"type": "enum", "name": "AccountStatus", "symbols": ["ACTIVE", "INACTIVE", "FROZEN", "CLOSED"]}},
+      {"name": "transactions", "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "Transaction",
+          "fields": [
+            {"name": "transaction_id", "type": "string"},
+            {"name": "date", "type": "long"},
+            {"name": "type", "type": {"type": "enum", "name": "TransactionType", "symbols": ["DEPOSIT", "WITHDRAWAL", "TRANSFER", "PAYMENT", "FEE"]}},
+            {"name": "amount", "type": "string"},
+            {"name": "description", "type": "string"},
+            {"name": "balance_after", "type": "string"}
+          ]
+        }
+      }},
+      {"name": "interest_rate", "type": ["null", "string"]},
+      {"name": "overdraft_limit", "type": ["null", "string"]},
+      {"name": "linked_accounts", "type": {"type": "array", "items": "string"}},
+      {"name": "tags", "type": {"type": "array", "items": "string"}}
+    ]
+  }

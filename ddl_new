@@ -1,0 +1,63 @@
+CREATE EXTERNAL TABLE `bank_bank_transaction_flatten_avro`(
+  `transactions_0_date` string COMMENT 'from deserializer', 
+  `transactions_1_type` string COMMENT 'from deserializer', 
+  `balance` string COMMENT 'from deserializer', 
+  `tags_1` string COMMENT 'from deserializer', 
+  `transactions_1_balance_after` string COMMENT 'from deserializer', 
+  `overdraft_limit` string COMMENT 'from deserializer', 
+  `tags_2` string COMMENT 'from deserializer', 
+  `customer_contact_email` string COMMENT 'from deserializer', 
+  `interest_rate` string COMMENT 'from deserializer', 
+  `linked_accounts_0` string COMMENT 'from deserializer', 
+  `transactions_0_balance_after` string COMMENT 'from deserializer', 
+  `customer_first_name` string COMMENT 'from deserializer', 
+  `transactions_1_description` string COMMENT 'from deserializer', 
+  `last_activity_date` string COMMENT 'from deserializer', 
+  `customer_contact_address_country` string COMMENT 'from deserializer', 
+  `account_number` string COMMENT 'from deserializer', 
+  `customer_contact_address_street` string COMMENT 'from deserializer', 
+  `customer_contact_address_zip` string COMMENT 'from deserializer', 
+  `customer_date_of_birth` string COMMENT 'from deserializer', 
+  `open_date` string COMMENT 'from deserializer', 
+  `transactions_0_type` string COMMENT 'from deserializer', 
+  `linked_accounts_1` string COMMENT 'from deserializer', 
+  `customer_ssn` string COMMENT 'from deserializer', 
+  `account_type` string COMMENT 'from deserializer', 
+  `status` string COMMENT 'from deserializer', 
+  `currency` string COMMENT 'from deserializer', 
+  `customer_contact_address_state` string COMMENT 'from deserializer', 
+  `transactions_1_transaction_id` string COMMENT 'from deserializer', 
+  `tags_0` string COMMENT 'from deserializer', 
+  `customer_contact_phone` string COMMENT 'from deserializer', 
+  `customer_customer_id` string COMMENT 'from deserializer', 
+  `transactions_0_transaction_id` string COMMENT 'from deserializer', 
+  `transactions_1_amount` string COMMENT 'from deserializer', 
+  `transactions_1_date` string COMMENT 'from deserializer', 
+  `transactions_0_amount` string COMMENT 'from deserializer', 
+  `batch_timestamp` string COMMENT 'from deserializer', 
+  `customer_last_name` string COMMENT 'from deserializer', 
+  `transactions_0_description` string COMMENT 'from deserializer', 
+  `timestamp` string COMMENT 'from deserializer', 
+  `customer_contact_address_city` string COMMENT 'from deserializer')
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.serde2.avro.AvroSerDe' 
+WITH SERDEPROPERTIES ( 
+  'avro.schema.literal'='{\"type\":\"record\",\"name\":\"UnionRecord\",\"fields\":[{\"name\":\"transactions_0_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"balance\",\"type\":[\"string\",\"null\"]},{\"name\":\"tags_1\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_balance_after\",\"type\":[\"string\",\"null\"]},{\"name\":\"overdraft_limit\",\"type\":[\"string\",\"null\"]},{\"name\":\"tags_2\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_email\",\"type\":[\"string\",\"null\"]},{\"name\":\"interest_rate\",\"type\":[\"string\",\"null\"]},{\"name\":\"linked_accounts_0\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_balance_after\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_first_name\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_description\",\"type\":[\"string\",\"null\"]},{\"name\":\"last_activity_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_country\",\"type\":[\"string\",\"null\"]},{\"name\":\"account_number\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_street\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_date_of_birth\",\"type\":[\"string\",\"null\"]},{\"name\":\"open_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"linked_accounts_1\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_ssn\",\"type\":[\"string\",\"null\"]},{\"name\":\"account_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"status\",\"type\":[\"string\",\"null\"]},{\"name\":\"currency\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_state\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_transaction_id\",\"type\":[\"string\",\"null\"]},{\"name\":\"tags_0\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_phone\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_customer_id\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_transaction_id\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_amount\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_amount\",\"type\":[\"string\",\"null\"]},{\"name\":\"batch_timestamp\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_last_name\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_description\",\"type\":[\"string\",\"null\"]},{\"name\":\"timestamp\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_city\",\"type\":[\"string\",\"null\"]}]}') 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.avro.AvroContainerInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.avro.AvroContainerOutputFormat'
+LOCATION
+  's3://aws-glue-assets-767397672884-us-east-1/bank_transaction_flatten_avro/'
+TBLPROPERTIES (
+  'CrawlerSchemaDeserializerVersion'='1.0', 
+  'CrawlerSchemaSerializerVersion'='1.0', 
+  'UPDATED_BY_CRAWLER'='banking_crawler', 
+  'averageRecordSize'='658', 
+  'avro.schema.literal'='{\"type\":\"record\",\"name\":\"UnionRecord\",\"fields\":[{\"name\":\"transactions_0_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"balance\",\"type\":[\"string\",\"null\"]},{\"name\":\"tags_1\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_balance_after\",\"type\":[\"string\",\"null\"]},{\"name\":\"overdraft_limit\",\"type\":[\"string\",\"null\"]},{\"name\":\"tags_2\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_email\",\"type\":[\"string\",\"null\"]},{\"name\":\"interest_rate\",\"type\":[\"string\",\"null\"]},{\"name\":\"linked_accounts_0\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_balance_after\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_first_name\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_description\",\"type\":[\"string\",\"null\"]},{\"name\":\"last_activity_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_country\",\"type\":[\"string\",\"null\"]},{\"name\":\"account_number\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_street\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_zip\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_date_of_birth\",\"type\":[\"string\",\"null\"]},{\"name\":\"open_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"linked_accounts_1\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_ssn\",\"type\":[\"string\",\"null\"]},{\"name\":\"account_type\",\"type\":[\"string\",\"null\"]},{\"name\":\"status\",\"type\":[\"string\",\"null\"]},{\"name\":\"currency\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_state\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_transaction_id\",\"type\":[\"string\",\"null\"]},{\"name\":\"tags_0\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_phone\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_customer_id\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_transaction_id\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_amount\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_1_date\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_amount\",\"type\":[\"string\",\"null\"]},{\"name\":\"batch_timestamp\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_last_name\",\"type\":[\"string\",\"null\"]},{\"name\":\"transactions_0_description\",\"type\":[\"string\",\"null\"]},{\"name\":\"timestamp\",\"type\":[\"string\",\"null\"]},{\"name\":\"customer_contact_address_city\",\"type\":[\"string\",\"null\"]}]}', 
+  'classification'='avro', 
+  'compressionType'='none', 
+  'objectCount'='1', 
+  'recordCount'='68400', 
+  'sizeKey'='45009715', 
+  'typeOfData'='file')

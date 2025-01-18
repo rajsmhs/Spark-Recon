@@ -1,0 +1,13 @@
+# S3 access configuration
+fs.s3a.access.key: your_access_key
+fs.s3a.secret.key: your_secret_key
+fs.s3a.endpoint: s3.amazonaws.com
+fs.s3a.path.style.access: true
+
+# AWS credentials provider
+fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider
+
+# Filesystem configuration
+fs.s3.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+fs.s3a.impl: org.apache.hadoop.fs.s3a.S3AFileSystem
+fs.allowed-fallback-filesystems: s3;hadoopfs

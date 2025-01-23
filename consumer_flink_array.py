@@ -648,3 +648,162 @@ class FlattenFunction(MapFunction):
             
         # Batch the results
         return self.batch_results(flattened_results)
+
+
+
+
+
+
+
+
+
+=============
+
+
+class FlattenFunction(MapFunction):
+    def __init__(self, batch_size: int = 1000):
+        self.delimiter = "_"
+        self.batch_size = batch_size
+
+    def is_nested(self, value: Any) -> bool:
+        """Check if a value contains nested structures."""
+        return isinstance(value, (dict, list))
+
+    def has_nested_structures(self, data: Dict[str, Any]) -> bool:
+        """Check if dictionary contains any nested structures."""
+        return any(self.is_nested(value) for value in data.values())
+
+    def flatten_one_level(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Flatten one level of nesting in the dictionary.
+        
+        Args:
+            data: Dictionary that may contain nested structures
+            
+        Returns:
+            Partially flattened dictionary
+        """
+        flattened = {}
+
+        for key, value in data.items():
+            if isinstance(value, dict):
+                # Flatten one level of dictionary
+                for sub_key, sub_value in value.items():
+                    new_key = f"{key}{self.delimiter}{sub_key}"
+                    flattened[new_key] = sub_value
+            elif isinstance(value, list):
+                # Handle arrays
+                if value and all(isinstance(item, dict) for item in value):
+                    # List of dictionaries - flatten each dict in the list
+                    for item in value:
+                        for sub_key, sub_value in item.items():
+                            new_key = f"{key}{self.delimiter}{sub_key}"
+                            if new_key in flattened:
+                                # If key exists, append as comma-separated value
+                                if isinstance(flattened[new_key], list):
+                                    flattened[new_key].append(sub_value)
+                                else:
+                                    flattened[new_key] = [flattened[new_key], sub_value]
+                            else:
+                                flattened[new_key] = sub_value
+                else:
+                    # List of primitive values or mixed content
+                    flattened[key] = value
+            else:
+                # Keep non-nested values as is
+                flattened[key] = value
+
+        return flattened
+
+    def flatten_completely(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Iteratively flatten all nested structures until no nesting remains.
+        
+        Args:
+            data: Dictionary with nested structures
+            
+        Returns:
+            Completely flattened dictionary
+        """
+        flattened = dict(data)
+        iteration = 0
+        max_iterations = 100  # Safety limit to prevent infinite loops
+
+        while self.has_nested_structures(flattened) and iteration < max_iterations:
+            flattened = self.flatten_one_level(flattened)
+            iteration += 1
+
+        # Convert all values to strings and handle any remaining lists
+        final_result = {}
+        for key, value in flattened.items():
+            if isinstance(value, list):
+                # Convert list to comma-separated string
+                final_result[key] = ','.join(str(item) for item in value)
+            else:
+                final_result[key] = str(value)
+
+        return final_result
+
+    def explode_arrays(self, flattened_dict: Dict[str, str]) -> List[Dict[str, str]]:
+        """
+        Explode any comma-separated values into separate records.
+        
+        Args:
+            flattened_dict: Dictionary with flattened structure
+            
+        Returns:
+            List of dictionaries with exploded arrays
+        """
+        # Find keys with comma-separated values
+        array_keys = {k: v.split(',') for k, v in flattened_dict.items() 
+                     if isinstance(v, str) and ',' in v}
+        
+        if not array_keys:
+            return [flattened_dict]
+
+        # Generate all combinations of array values
+        keys = list(array_keys.keys())
+        value_combinations = itertools.product(*[array_keys[k] for k in keys])
+        
+        # Create new records for each combination
+        result = []
+        non_array_items = {k: v for k, v in flattened_dict.items() if k not in array_keys}
+        
+        for values in value_combinations:
+            new_dict = non_array_items.copy()
+            for k, v in zip(keys, values):
+                new_dict[k] = v
+            result.append(new_dict)
+            
+        return result
+
+    def batch_results(self, results: List[Dict[str, str]]) -> List[List[Dict[str, str]]]:
+        """Split results into batches."""
+        return [
+            results[i:i + self.batch_size] 
+            for i in range(0, len(results), self.batch_size)
+        ]
+
+    def map(self, value):
+        if value is None:
+            return None
+
+        try:
+            # First, completely flatten the structure
+            flattened = self.flatten_completely(value)
+            
+            # Then explode any remaining arrays (comma-separated values)
+            exploded_results = self.explode_arrays(flattened)
+            
+            # Add timestamp to each record
+            current_timestamp = datetime.now().isoformat()
+            for result in exploded_results:
+                result['timestamp'] = current_timestamp
+            
+            # Batch the results
+            return self.batch_results(exploded_results)
+            
+        except Exception as e:
+            logger.error(f"Error in flattening: {str(e)}")
+            return None
+

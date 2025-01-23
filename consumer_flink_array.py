@@ -576,4 +576,73 @@ def main():
         logger.error(f"Job execution failed: {str(e)}")
 
 if __name__ == "__main__":
+    
     main()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def __init__(self, batch_size=100, batch_interval=60):
+        self.delimiter = "_"
+        self.max_recursion_depth = 100
+        self.batch_size = batch_size
+        self.batch_interval = batch_interval
+        self.current_batch = []
+        self.last_batch_time = time.time()
+        
+    # ... [keep all other methods as they are] ...
+
+    def process_batch(self):
+        # Process the current batch (e.g., send to Kafka)
+        print(f"Processing batch of {len(self.current_batch)} items")
+        # Here you would typically send the batch to Kafka or perform other processing
+        self.current_batch = []
+        self.last_batch_time = time.time()
+
+    def add_to_batch(self, item):
+        self.current_batch.append(item)
+        if len(self.current_batch) >= self.batch_size or (time.time() - self.last_batch_time) >= self.batch_interval:
+            self.process_batch()
+
+    def map(self, value: Union[Dict, None]) -> None:
+        """
+        Map function to flatten the input value, create multiple rows for arrays,
+        and add to the current batch.
+        """
+        if value is None:
+            return
+            
+        # First flatten the nested structures
+        flattened = self.flatten_dict(value)
+        
+        # Process arrays and create combinations with recursive flattening
+        result_rows = self.process_arrays(flattened)
+        
+        # Convert all values to strings and add timestamp
+        timestamp = datetime.now().isoformat()
+        for row in result_rows:
+            stringified_row = self.stringify_values(row)
+            stringified_row['timestamp'] = timestamp
+            self.add_to_batch(stringified_row)
+
+    def close(self):
+        """
+        Process any remaining items in the batch when closing the function.
+        """
+        if self.current_batch:
+            self.process_batch()

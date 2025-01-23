@@ -328,3 +328,62 @@ if __name__ == "__main__":
 
 
 
+
+
+###################################################
+def main(num_records=1000):  # Add parameter for number of records
+    avro_schema, avro_schema_str = read_json_file(parse_flag=parse_flag, local_file_path=None, s3_prefix=s3_prefix, s3_bucket=s3_bucket)
+
+    producer = Producer(KAFKA_CONFIG)
+    parsed_schema = fastavro.parse_schema(avro_schema)
+        
+    batch = []
+    batch_size = 0
+    last_processed_id = load_checkpoint(CHECKPOINT_FILE)
+    records_sent = 0  # Counter for number of records sent
+    
+    try:
+        for i in range(last_processed_id + 1, last_processed_id + num_records + 1):
+            if records_sent >= num_records:  # Check if we've sent enough records
+                break
+                
+            sample_order = generate_sample_data()
+            avro_bytes = serialize_to_avro(sample_order, parsed_schema)
+
+            if batch_size + len(avro_bytes) > MAX_BATCH_SIZE:
+                send_batch_to_kafka(producer, TOPIC, batch)
+                save_checkpoint(i - 1, CHECKPOINT_FILE)
+                logger.info(f"Batch sent. Records sent so far: {records_sent}")
+                logger.info(f"Batch size: {batch_size}")
+                logger.info(f"Last processed ID: {i - 1}")
+                batch = []
+                batch_size = 0
+                time.sleep(1)  # Reduced sleep time, adjust as needed
+            
+            batch.append(avro_bytes)
+            batch_size += len(avro_bytes)
+            records_sent += 1
+            
+            # Optional progress logging
+            if records_sent % 100 == 0:  # Log every 100 records
+                logger.info(f"Progress: {records_sent}/{num_records} records processed")
+        
+        # Send any remaining data in the batch
+        if batch:
+            send_batch_to_kafka(producer, TOPIC, batch)
+            save_checkpoint(last_processed_id + records_sent, CHECKPOINT_FILE)
+            logger.info(f"Final batch sent. Total records sent: {records_sent}")
+        
+        logger.info(f"Successfully sent {records_sent} messages to Kafka")
+        
+    except Exception as e:
+        logger.error(f"Error during message production: {str(e)}")
+        raise
+    finally:
+        producer.flush()  # Ensure all messages are sent
+        producer.close()  # Properly close the producer
+
+if __name__ == "__main__":
+    # You can specify the number of records to send
+    num_records_to_send = 1000  # Change this value as needed
+    main(num_records_to_send)

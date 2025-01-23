@@ -534,3 +534,117 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+class FlattenFunction(MapFunction):
+    def __init__(self, batch_size: int = 1000):
+        self.delimiter = "_"
+        self.batch_size = batch_size
+
+    def flatten_and_explode(self, data: Any, parent_key: str = '') -> List[Dict[str, str]]:
+        """
+        Recursively flatten and explode nested structures.
+        
+        Args:
+            data: The input data (dict, list, or primitive)
+            parent_key: The parent key for nested elements
+            
+        Returns:
+            List of flattened dictionaries
+        """
+        if data is None:
+            return [{}]
+
+        if isinstance(data, dict):
+            return self.flatten_dict(data, parent_key)
+        elif isinstance(data, list):
+            return self.flatten_list(data, parent_key)
+        else:
+            return [{parent_key: str(data)}] if parent_key else [{}]
+
+    def flatten_dict(self, data: Dict, parent_key: str = '') -> List[Dict[str, str]]:
+        """
+        Flatten a dictionary and its nested structures.
+        """
+        results = [{}]
+        
+        for key, value in data.items():
+            current_key = f"{parent_key}{self.delimiter}{key}" if parent_key else key
+            
+            if isinstance(value, dict):
+                nested_results = self.flatten_and_explode(value, current_key)
+                results = [
+                    {**existing, **new}
+                    for existing in results
+                    for new in nested_results
+                ]
+            elif isinstance(value, list):
+                nested_results = self.flatten_list(value, current_key)
+                if nested_results:
+                    results = [
+                        {**existing, **new}
+                        for existing in results
+                        for new in nested_results
+                    ]
+                else:
+                    for d in results:
+                        d[current_key] = None
+            else:
+                for d in results:
+                    d[current_key] = str(value)
+                    
+        return results
+
+    def flatten_list(self, data: List, parent_key: str) -> List[Dict[str, str]]:
+        """
+        Flatten a list and its nested structures.
+        """
+        if not data:
+            return [{}]
+            
+        results = []
+        for i, item in enumerate(data):
+            if isinstance(item, dict):
+                # For nested objects in array
+                nested_results = self.flatten_dict(item, f"{parent_key}")
+                results.extend(nested_results)
+            elif isinstance(item, list):
+                # For nested arrays
+                nested_results = self.flatten_list(item, f"{parent_key}")
+                results.extend(nested_results)
+            else:
+                # For primitive values
+                results.append({parent_key: str(item)})
+                
+        return results
+
+    def batch_results(self, results: List[Dict[str, str]]) -> List[List[Dict[str, str]]]:
+        """
+        Split results into batches.
+        """
+        return [
+            results[i:i + self.batch_size] 
+            for i in range(0, len(results), self.batch_size)
+        ]
+
+    def map(self, value):
+        if value is None:
+            return None
+            
+        # Flatten and explode the structure
+        flattened_results = self.flatten_and_explode(value)
+        
+        # Add timestamp to each record
+        current_timestamp = datetime.now().isoformat()
+        for result in flattened_results:
+            result['timestamp'] = current_timestamp
+            
+        # Batch the results
+        return self.batch_results(flattened_results)

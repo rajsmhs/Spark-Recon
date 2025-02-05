@@ -1,0 +1,26 @@
+Let me provide a clear context-based approach for handling the BTEQ to Athena transformation while waiting for source data:
+
+Current Situation:
+Source data is not yet available in AWS S3
+BTEQ transformations need to be converted to Athena
+Development work needs to continue despite data unavailability
+Recommended Approach:
+Create minimal sample data that represents the source
+Focus on syntax conversion from BTEQ to Athena
+Work on transformations using this sample data
+Identify and document technical challenges early
+Key Areas to Focus:
+Understanding source BTEQ logic
+Mapping BTEQ functions to Athena equivalents
+Documenting assumptions and questions
+Creating test scenarios with sample data
+Benefits of This Approach:
+No delay in development work
+Early identification of technical challenges
+Time to resolve potential issues
+Parallel progress while waiting for data onboarding
+Next Steps:
+Review existing BTEQ scripts
+Create development plan
+Set up development environment
+Begin transformation work with sample data

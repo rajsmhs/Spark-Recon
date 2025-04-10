@@ -46,3 +46,10 @@ CASE
 END AS COLUMN_70_TRIMED
 
 
+==========================
+
+The CURRENCY_CONVERSION table is a critical component in our financial data infrastructure that maintains foreign exchange (FX) rate information for currency conversions across business operations. The table structure comprises four essential elements: CALENDAR_DATE for recording the validity date, FROM_CUR representing the source currency, TO_CUR indicating the target currency, and FX_RATE storing the actual conversion rate. Data is sourced from the FX_RATES view, with built-in quality control that excludes null exchange rates.
+
+The table supports both direct and inverse currency conversions, optimizing data storage while maintaining full functionality. It enables various financial operations including reporting, cross-border transactions, historical analysis, and regulatory compliance. Regular daily updates ensure current market rates are available for business operations, making it a reliable source for all currency-related calculations. Due to its critical role in financial accuracy, access to this table is carefully managed through appropriate security protocols.
+
+

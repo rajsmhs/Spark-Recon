@@ -302,3 +302,5 @@ def preprocess_text(raw_text):
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
     
     return cleaned_text, extracted_numbers
+    
+    return cleaned_text, extracted_numbers

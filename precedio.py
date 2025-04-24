@@ -173,3 +173,35 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+pii_types:
+  - CREDIT_CARD
+  - PHONE_NUMBER
+  - IBAN
+  - AU_ABN
+  - AU_ACN
+  - AU_TFN
+  - AU_MEDICARE
+
+custom_patterns:
+  BSB:
+    regex: '\b\d{3}-\d{3}\b'
+    score: 0.85
+
+output_fields:
+  - entity_type
+  - start
+  - end
+  - text
+  - score
+
+processing:
+  chunk_size: 1000
+  max_retries: 3
+  timeout: 300

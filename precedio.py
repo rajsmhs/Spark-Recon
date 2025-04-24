@@ -175,72 +175,82 @@ extract_and_classify(raw_text)
 
 
 
+import spacy
+from presidio_analyzer import AnalyzerEngine, RecognizerRegistry
+from presidio_analyzer.nlp_engine import NlpEngineProvider
+from presidio_anonymizer import AnonymizerEngine
 
+# 1. Create custom NLP Engine with spaCy
+class SpacyNlpEngine:
+    def __init__(self, model_name="en_core_web_lg"):
+        self.nlp = spacy.load(model_name)
 
+    def process_text(self, text):
+        return self.nlp(text)
 
-rom transformers import BertForTokenClassification, BertTokenizer
-import torch
+    def get_entities(self, text):
+        doc = self.process_text(text)
+        entities = []
+        for ent in doc.ents:
+            entities.append((ent.text, ent.label_, ent.start_char, ent.end_char))
+        return entities
 
-# Load the pre-trained BERT model and tokenizer
-model = BertForTokenClassification.from_pretrained('bert-base-cased', num_labels=5)
-tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+# 2. Set up the Presidio Analyzer with spaCy
+def setup_presidio_analyzer():
+    spacy_nlp_engine = SpacyNlpEngine()
+    nlp_engine_provider = NlpEngineProvider(nlp_engine=spacy_nlp_engine)
+    registry = RecognizerRegistry()
+    analyzer = AnalyzerEngine(nlp_engine_provider=nlp_engine_provider,
+                              registry=registry)
+    return analyzer
 
-# Define the input text
-text = "John Smith's phone number is 555-1234, his email is johnsmith@example.com, and his SSN is 123-45-6789."
+# 3. Function to identify sensitive information
+def identify_sensitive_info(text):
+    analyzer = setup_presidio_analyzer()
+    
+    # Define the entities we want to detect
+    entities_to_detect = [
+        "CREDIT_CARD",
+        "PHONE_NUMBER",
+        "PERSON",
+        "US_BANK_NUMBER"  # This is the closest match for account number
+    ]
+    
+    # Analyze the text
+    results = analyzer.analyze(text=text, entities=entities_to_detect, language='en')
+    
+    # Organize results
+    findings = {entity: [] for entity in entities_to_detect}
+    for result in results:
+        findings[result.entity_type].append({
+            'text': text[result.start:result.end],
+            'start': result.start,
+            'end': result.end,
+            'score': result.score
+        })
+    
+    return findings
 
-# Tokenize the input text
-tokens = tokenizer.tokenize(text)
-token_ids = tokenizer.convert_tokens_to_ids(tokens)
-input_ids = torch.tensor([token_ids])
+# 4. Main function to process text
+def process_text(raw_text):
+    print("Processing text to identify sensitive information...")
+    results = identify_sensitive_info(raw_text)
+    
+    print("\nFindings:")
+    for entity_type, entities in results.items():
+        print(f"\n{entity_type}:")
+        for entity in entities:
+            # Mask sensitive information for display
+            masked_text = '*' * (len(entity['text']) - 4) + entity['text'][-4:]
+            print(f"  - {masked_text} (confidence: {entity['score']:.2f})")
 
-# Get the model's predictions
-with torch.no_grad():
-    outputs = model(input_ids)
-    predictions = outputs[0].argmax(dim=2)
-
-# Convert the predictions back to labels
-labels = [tokenizer.convert_ids_to_tokens(prediction.item()) for prediction in predictions[0]]
-
-# Print the original text with entity labels in parentheses
-entities = []
-for i, (token, label) in enumerate(zip(tokens, labels)):
-    if label == 'B-PER':
-        entity = token
-        if i < len(labels) - 1 and labels[i+1] == 'I-PER':
-            continue
-        entities.append(entity)
-    elif label == 'I-PER':
-        entity += ' ' + token
-        if i < len(labels) - 1 and labels[i+1] == 'O':
-            entities.append(entity)
-    elif label == 'B-PHN':
-        entity = token
-        if i < len(labels) - 1 and labels[i+1] == 'I-PHN':
-            continue
-        entities.append(entity)
-    elif label == 'I-PHN':
-        entity += ' ' + token
-        if i < len(labels) - 1 and labels[i+1] == 'O':
-            entities.append(entity)
-    elif label == 'B-EMAIL':
-        entity = token
-        if i < len(labels) - 1 and labels[i+1] == 'I-EMAIL':
-            continue
-        entities.append(entity)
-    elif label == 'I-EMAIL':
-        entity += token
-        if i < len(labels) - 1 and labels[i+1] == 'O':
-            entities.append(entity)
-    elif label == 'B-SSN':
-        entity = token
-        if i < len(labels) - 1 and labels[i+1] == 'I-SSN':
-            continue
-        entities.append(entity)
-    elif label == 'I-SSN':
-        entity += token
-        if i < len(labels) - 1 and labels[i+1] == 'O':
-            entities.append(entity)
-
-print(text)
-for entity in entities:
-    print(f'({entity})')
+# 5. Example usage
+if __name__ == "__main__":
+    sample_text = """
+    John Doe's credit card number is 4532-7153-3790-4421.
+    His phone number is (555) 123-4567 and his account number is 1234567890.
+    Jane Smith can be reached at 987-654-3210.
+    The company's main account is 9876543210.
+    """
+    
+    process_text(sample_text)

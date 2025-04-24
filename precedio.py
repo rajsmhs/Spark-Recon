@@ -291,7 +291,7 @@ def preprocess_text(raw_text):
         return original
 
     # Pattern for numbers with 16-23 digits (including spaces/dashes)
-    pattern = r'[\d\s-]{16,35}'
+    pattern = r'(?<!\d)([\d\s-]{16,35})(?!\d)'
     
     # First pass: clean numbers and ensure spaces before them
     cleaned_text = re.sub(pattern, replace_number_with_clean, raw_text)

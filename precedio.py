@@ -163,3 +163,84 @@ Account number is "123-456" and extra value is "112233445566".
 '''
 
 extract_and_classify(raw_text)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rom transformers import BertForTokenClassification, BertTokenizer
+import torch
+
+# Load the pre-trained BERT model and tokenizer
+model = BertForTokenClassification.from_pretrained('bert-base-cased', num_labels=5)
+tokenizer = BertTokenizer.from_pretrained('bert-base-cased')
+
+# Define the input text
+text = "John Smith's phone number is 555-1234, his email is johnsmith@example.com, and his SSN is 123-45-6789."
+
+# Tokenize the input text
+tokens = tokenizer.tokenize(text)
+token_ids = tokenizer.convert_tokens_to_ids(tokens)
+input_ids = torch.tensor([token_ids])
+
+# Get the model's predictions
+with torch.no_grad():
+    outputs = model(input_ids)
+    predictions = outputs[0].argmax(dim=2)
+
+# Convert the predictions back to labels
+labels = [tokenizer.convert_ids_to_tokens(prediction.item()) for prediction in predictions[0]]
+
+# Print the original text with entity labels in parentheses
+entities = []
+for i, (token, label) in enumerate(zip(tokens, labels)):
+    if label == 'B-PER':
+        entity = token
+        if i < len(labels) - 1 and labels[i+1] == 'I-PER':
+            continue
+        entities.append(entity)
+    elif label == 'I-PER':
+        entity += ' ' + token
+        if i < len(labels) - 1 and labels[i+1] == 'O':
+            entities.append(entity)
+    elif label == 'B-PHN':
+        entity = token
+        if i < len(labels) - 1 and labels[i+1] == 'I-PHN':
+            continue
+        entities.append(entity)
+    elif label == 'I-PHN':
+        entity += ' ' + token
+        if i < len(labels) - 1 and labels[i+1] == 'O':
+            entities.append(entity)
+    elif label == 'B-EMAIL':
+        entity = token
+        if i < len(labels) - 1 and labels[i+1] == 'I-EMAIL':
+            continue
+        entities.append(entity)
+    elif label == 'I-EMAIL':
+        entity += token
+        if i < len(labels) - 1 and labels[i+1] == 'O':
+            entities.append(entity)
+    elif label == 'B-SSN':
+        entity = token
+        if i < len(labels) - 1 and labels[i+1] == 'I-SSN':
+            continue
+        entities.append(entity)
+    elif label == 'I-SSN':
+        entity += token
+        if i < len(labels) - 1 and labels[i+1] == 'O':
+            entities.append(entity)
+
+print(text)
+for entity in entities:
+    print(f'({entity})')

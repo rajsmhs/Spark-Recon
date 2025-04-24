@@ -111,3 +111,55 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+import re
+
+# --- Luhn check for credit card ---
+def luhn_checksum(card_number):
+    def digits_of(n): return [int(d) for d in str(n)]
+    digits = digits_of(card_number)
+    odd_digits = digits[-1::-2]
+    even_digits = digits[-2::-2]
+    checksum = sum(odd_digits)
+    for d in even_digits:
+        checksum += sum(digits_of(d * 2))
+    return checksum % 10 == 0
+
+# --- Clean text & extract all number sequences ---
+def extract_and_classify(text):
+    cleaned_text = text.replace('"', '')
+    
+    # Find digit sequences (with optional spaces or dashes)
+    number_patterns = re.findall(r'[\d\s\-]{6,25}', cleaned_text)
+    
+    for pattern in number_patterns:
+        number = re.sub(r'[\s\-]', '', pattern)
+
+        if not number.isdigit():
+            continue
+
+        length = len(number)
+
+        # Classify based on length and checks
+        if 12 <= length <= 23 and luhn_checksum(number):
+            label = "Credit Card"
+        elif length == 10:
+            label = "Phone Number"
+        elif 6 <= length <= 10:
+            label = "Account Number"
+        else:
+            label = "Unknown"
+
+        print(f"Found: {number} → {label}")
+
+# --- Example usage ---
+raw_text = '''
+Here is some sample data: "4111 1111-1111-1111", 9876543210, and 123-456-7890123.
+Account number is "123-456" and extra value is "112233445566".
+'''
+
+extract_and_classify(raw_text)

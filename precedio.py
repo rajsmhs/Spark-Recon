@@ -259,48 +259,148 @@ if __name__ == "__main__":
 
 
 
+import re
+import yaml
+from typing import List, Dict, Tuple
+from presidio_analyzer import AnalyzerEngine
+from presidio_anonymizer import AnonymizerEngine
 
-
-
-
-
-
-
-
-
-
-def preprocess_text(raw_text):
+def preprocess_text(raw_text: str) -> Tuple[str, List[str]]:
     """
-    Preprocess raw text:
-    1. Find numbers with 16-23 digits (including spaces, dashes, quotes)
-    2. Remove spaces, dashes, quotes between digits
-    3. Ensure space before and after numbers
-    4. Return cleaned text and extracted numbers
-    """
-    extracted_numbers = []
+    Preprocess the raw text and extract all digit sequences.
     
-    def replace_number_with_clean(match):
-        original = match.group(0)
-        # Remove spaces, dashes, quotes between digits
-        cleaned = re.sub(r'[\s\-\"\'!]+', '', original)
+    Returns:
+    - Cleaned text
+    - List of all digit sequences found in the text
+    """
+    # Remove double quotes
+    text = raw_text.replace('"', '')
+    
+    # Add space between letters and numbers
+    text = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', text)
+    text = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', text)
+    
+    # Remove parentheses
+    text = re.sub(r'[\(\)]', '', text)
+    
+    # Remove hyphens between numbers but preserve hyphens in words
+    text = re.sub(r'(\d)-+(\d)', r'\1\2', text)
+    
+    # Remove spaces between numbers
+    text = re.sub(r'(\d)\s+(\d)', r'\1\2', text)
+    
+    # Clean up multiple spaces
+    text = re.sub(r'\s+', ' ', text)
+    
+    # Extract all digit sequences
+    digit_sequences = re.findall(r'\d+', text)
+    
+    return text.strip(), digit_sequences
+
+def load_bin_lookup_table():
+    # This function should load a BIN lookup table
+    # For this example, we'll use a dummy table
+    return {
+        '400000': {'issuer': 'Visa', 'length': [13, 16]},
+        '510000': {'issuer': 'Mastercard', 'length': [16]},
+        # Add more BIN entries as needed
+    }
+
+def luhn_algorithm(card_number: str) -> bool:
+    digits = [int(d) for d in card_number]
+    checksum = 0
+    odd_digits = digits[-1::-2]
+    even_digits = digits[-2::-2]
+    checksum += sum(odd_digits)
+    for d in even_digits:
+        checksum += sum(divmod(d * 2, 10))
+    return checksum % 10 == 0
+
+def is_valid_credit_card(number: str, bin_table: Dict) -> bool:
+    if not 12 <= len(number) <= 23:
+        return False
+    
+    bin_prefix = number[:6]
+    if bin_prefix not in bin_table:
+        return False
+    
+    expected_lengths = bin_table[bin_prefix]['length']
+    if len(number) not in expected_lengths:
+        return False
+    
+    return luhn_algorithm(number)
+
+def extract_credit_card_numbers(digit_sequences: List[str], bin_table: Dict) -> List[str]:
+    valid_cards = [num for num in digit_sequences if len(num) >= 12 and is_valid_credit_card(num, bin_table)]
+    return valid_cards
+
+def process_statement(raw_text: str, analyzer: AnalyzerEngine, anonymizer: AnonymizerEngine, config: Dict, bin_table: Dict) -> Dict[str, List]:
+    # Preprocess the text
+    cleaned_text, digit_sequences = preprocess_text(raw_text)
+    
+    extracted_info = {
+        'credit_cards': extract_credit_card_numbers(digit_sequences, bin_table),
+        'other_pii': [],
+        'all_digit_sequences': digit_sequences
+    }
+    
+    # Analyze the text for other PII
+    results = analyzer.analyze(text=cleaned_text, language='en')
+    
+    for result in results:
+        if result.entity_type in config['pii_types'] or result.entity_type in config.get('custom_patterns', {}):
+            if result.entity_type != 'CREDIT_CARD':  # We've already handled credit cards
+                info = {field: getattr(result, field) for field in config['output_fields']}
+                extracted_info['other_pii'].append(info)
+    
+    return extracted_info
+
+def main():
+    # Load configuration
+    with open("config.yaml", "r") as config_file:
+        config = yaml.safe_load(config_file)
+    
+    analyzer = AnalyzerEngine()
+    anonymizer = AnonymizerEngine()
+    bin_table = load_bin_lookup_table()
+    
+    # Example statement details with various formatting
+    test_cases = [
+        'Customer payment via card "4111-1111-1111-1111"',
+        'Trans ID(4111 1111 1111 1111)payment',
+        'Payment4111111111111111received',
+        'Card num: 4111-1111-1111-1111',
+        'BSB: (062-000), Account: "12345678"'
+    ]
+    
+    for test_case in test_cases:
+        print("\nOriginal text:", test_case)
+        cleaned_text, digit_sequences = preprocess_text(test_case)
+        print("Preprocessed text:", cleaned_text)
+        print("Extracted digit sequences:", digit_sequences)
         
-        # Check if we have a valid number after cleaning
-        digits_only = re.sub(r'\D', '', cleaned)
-        if 16 <= len(digits_only) <= 23:
-            extracted_numbers.append(digits_only)
-            return f" {digits_only} "
-        return original
+        extracted_info = process_statement(test_case, analyzer, anonymizer, config, bin_table)
+        
+        print("Extracted Credit Card Numbers:")
+        for card in extracted_info['credit_cards']:
+            print(card)
+        
+        print("Other Extracted PII Information:")
+        for info in extracted_info['other_pii']:
+            print(info)
+        
+        print("All Digit Sequences:")
+        print(extracted_info['all_digit_sequences'])
 
-    # Pattern for numbers with 16-23 digits (including spaces/dashes/quotes)
-    # This pattern will match numbers that might have spaces, dashes, or quotes
-    pattern = r'(?<!\d)[\d\s\-\"\'!]{16,35}(?!\d)'
-    
-    # Clean numbers and ensure spaces before and after them
-    cleaned_text = re.sub(pattern, replace_number_with_clean, raw_text)
-    
-    # Remove any double spaces that might have been created
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
-    
-    return cleaned_text, extracted_numbers
-    
-    return cleaned_text, extracted_numbers
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+
+
+
+

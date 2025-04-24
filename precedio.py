@@ -205,3 +205,44 @@ processing:
   chunk_size: 1000
   max_retries: 3
   timeout: 300
+
+
+
+
+
+def load_bin_lookup_table():
+    # This function should load a BIN lookup table
+    # For this example, we'll use a dummy table
+    return {
+        '400000': {'issuer': 'Visa', 'length': [13, 16]},
+        '510000': {'issuer': 'Mastercard', 'length': [16]},
+        # Add more BIN entries as needed
+    }
+
+def luhn_algorithm(card_number: str) -> bool:
+    digits = [int(d) for d in card_number]
+    checksum = 0
+    odd_digits = digits[-1::-2]
+    even_digits = digits[-2::-2]
+    checksum += sum(odd_digits)
+    for d in even_digits:
+        checksum += sum(divmod(d * 2, 10))
+    return checksum % 10 == 0
+
+def is_valid_credit_card(number: str, bin_table: Dict) -> bool:
+    if not 12 <= len(number) <= 23:
+        return False
+    
+    bin_prefix = number[:6]
+    if bin_prefix not in bin_table:
+        return False
+    
+    expected_lengths = bin_table[bin_prefix]['length']
+    if len(number) not in expected_lengths:
+        return False
+    
+    return luhn_algorithm(number)
+
+def extract_credit_card_numbers(digit_sequences: List[str], bin_table: Dict) -> List[str]:
+    valid_cards = [num for num in digit_sequences if len(num) >= 12 and is_valid_credit_card(num, bin_table)]
+    return valid_cards

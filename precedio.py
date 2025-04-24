@@ -272,28 +272,33 @@ if __name__ == "__main__":
 def preprocess_text(raw_text):
     """
     Preprocess raw text:
-    1. Find numbers with 16-23 digits (including spaces and dashes)
-    2. Ensure space before such numbers
-    3. Remove spaces and dashes between digits
+    1. Find numbers with 16-23 digits (including spaces, dashes, quotes)
+    2. Remove spaces, dashes, quotes between digits
+    3. Ensure space before and after numbers
     4. Return cleaned text and extracted numbers
     """
-    # Store original positions and numbers
-    number_mapping = []
+    extracted_numbers = []
     
     def replace_number_with_clean(match):
         original = match.group(0)
-        # Remove spaces and dashes between digits
-        cleaned = re.sub(r'[\s-]', '', original)
-        if 16 <= len(cleaned) <= 23:
-            number_mapping.append(cleaned)
-            # Ensure space before number if not at start of line
-            return f" {cleaned}"
+        # Remove spaces, dashes, quotes between digits
+        cleaned = re.sub(r'[\s\-\"\'!]+', '', original)
+        
+        # Check if we have a valid number after cleaning
+        digits_only = re.sub(r'\D', '', cleaned)
+        if 16 <= len(digits_only) <= 23:
+            extracted_numbers.append(digits_only)
+            return f" {digits_only} "
         return original
 
-    # Pattern for numbers with 16-23 digits (including spaces/dashes)
-    pattern = r'(?<!\d)([\d\s-]{16,35})(?!\d)'
+    # Pattern for numbers with 16-23 digits (including spaces/dashes/quotes)
+    # This pattern will match numbers that might have spaces, dashes, or quotes
+    pattern = r'(?<!\d)[\d\s\-\"\'!]{16,35}(?!\d)'
     
-    # First pass: clean numbers and ensure spaces before them
+    # Clean numbers and ensure spaces before and after them
     cleaned_text = re.sub(pattern, replace_number_with_clean, raw_text)
     
-    return cleaned_text, number_mapping
+    # Remove any double spaces that might have been created
+    cleaned_text = re.sub(r'\s+', ' ', cleaned_text).strip()
+    
+    return cleaned_text, extracted_numbers

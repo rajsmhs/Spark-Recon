@@ -1,122 +1,113 @@
 import yaml
 import pandas as pd
-from presidio_analyzer import AnalyzerEngine, PatternRecognizer, Pattern
-from presidio_anonymizer import AnonymizerEngine
-from typing import List, Dict
+import numpy as np
+from presidio_analyzer import AnalyzerEngine
+from presidio_analyzer.nlp_engine import NlpEngine
+import spacy
 import re
+from typing import List
+import requests
 
-def load_config(yaml_path: str) -> Dict:
+def load_config(config_path: str) -> dict:
     """Load YAML configuration file"""
-    with open(yaml_path, 'r') as file:
+    with open(config_path, 'r') as file:
         return yaml.safe_load(file)
 
-def create_custom_recognizer(entity_name: str, regex_pattern: str, score: float, description: str):
-    """Create a custom pattern recognizer"""
-    return PatternRecognizer(
-        supported_entity=entity_name,
-        patterns=[Pattern(regex_pattern, score)],
-        context=['bank', 'account', 'bsb'],
-        description=description
-    )
+def initialize_presidio():
+    """Initialize Presidio analyzer with spaCy model"""
+    nlp = spacy.load("en_core_web_lg")
+    nlp_engine = NlpEngine(nlp_engine=nlp)
+    return AnalyzerEngine(nlp_engine=nlp_engine)
 
-def setup_analyzer(config: Dict) -> AnalyzerEngine:
-    """Setup analyzer with standard and custom entities"""
-    analyzer = AnalyzerEngine()
-    
-    # Add custom recognizers
-    if 'custom_entities' in config['detection']:
-        for entity_name, entity_config in config['detection']['custom_entities'].items():
-            custom_recognizer = create_custom_recognizer(
-                entity_name=entity_name,
-                regex_pattern=entity_config['regex'],
-                score=entity_config['score'],
-                description=entity_config['description']
-            )
-            analyzer.registry.add_recognizer(custom_recognizer)
-    
-    return analyzer
+def validate_luhn(card_number: str) -> bool:
+    """Implement Luhn algorithm for credit card validation"""
+    def digits_of(n): return [int(d) for d in str(n)]
+    digits = digits_of(card_number)
+    odd_digits = digits[-1::-2]
+    even_digits = digits[-2::-2]
+    checksum = sum(odd_digits)
+    for d in even_digits:
+        checksum += sum(digits_of(d*2))
+    return checksum % 10 == 0
 
-def analyze_text(text: str, analyzer: AnalyzerEngine, enabled_entities: List[str]) -> List:
-    """Analyze text for PII entities"""
-    results = analyzer.analyze(
-        text=text,
-        language='en',
-        entities=enabled_entities
-    )
+def validate_credit_card(number: str, config: dict) -> bool:
+    """Validate credit card number based on configuration rules"""
+    # Remove spaces and hyphens between digits
+    number = re.sub(r'(\d)\s*-\s*(?=\d)', r'\1', number)
+    number = re.sub(r'(\d)\s+(?=\d)', r'\1', number)
+    
+    # Check length requirements
+    if not (config['validation']['credit_card']['min_length'] <= 
+            len(number) <= config['validation']['credit_card']['max_length']):
+        return False
+    
+    # Validate using Luhn algorithm
+    if not validate_luhn(number):
+        return False
+    
+    # BIN validation if enabled
+    if config['validation'].get('enforce_bin_check', False):
+        bin_number = number[:6]
+        bin_api = config['validation']['bin_api']
+        try:
+            response = requests.get(f"{bin_api}{bin_number}")
+            if response.status_code != 200:
+                return False
+        except:
+            return False
+    
+    return True
+
+def process_chunk(chunk: pd.DataFrame, analyzer: AnalyzerEngine, config: dict) -> List[dict]:
+    """Process a chunk of data to detect PII"""
+    results = []
+    
+    for _, row in chunk.iterrows():
+        text = ' '.join(str(value) for value in row)
+        analyzer_results = analyzer.analyze(
+            text=text,
+            entities=config['detection']['enabled_entities'],
+            language='en'
+        )
+        
+        pii_found = {}
+        for result in analyzer_results:
+            entity_type = result.entity_type
+            value = text[result.start:result.end]
+            
+            # Validate credit cards
+            if entity_type == "CREDIT_CARD":
+                if validate_credit_card(value, config):
+                    pii_found[entity_type] = value
+            else:
+                pii_found[entity_type] = value
+                
+        results.append(pii_found)
+    
     return results
 
-def process_file(config: Dict):
-    """Main function to process the input file and detect PII"""
-    # Setup analyzer
-    analyzer = setup_analyzer(config)
-    
-    # Get enabled entities
-    enabled_entities = config['detection']['enabled_entities']
-    
-    # Read input file
-    input_file = config['input']['parquet_file']
-    df = pd.read_parquet(input_file)
-    
-    # Initialize results storage
-    pii_findings = []
-    
-    # Process each column in the DataFrame
-    for column in df.columns:
-        # Convert column to string and analyze each value
-        for index, value in df[column].astype(str).items():
-            resultsHere's a Python function using Presidio to detect PII information based on the provided YAML configuration:
-
-```python
-import yaml
-import re
-import pyarrow.parquet as pq
-import duckdb
-from presidio_analyzer import AnalyzerEngine, PatternRecognizer, RecognizerRegistry
-
-def detect_pii(config_file, input_file, output_file):
+def main():
     # Load configuration
-    with open(config_file, 'r') as file:
-        config = yaml.safe_load(file)
-
+    config = load_config('config.yaml')
+    
     # Initialize Presidio analyzer
-    registry = RecognizerRegistry()
-    analyzer = AnalyzerEngine(registry=registry)
+    analyzer = initialize_presidio()
+    
+    # Read CSV file in chunks
+    chunk_size = 100
+    results = []
+    
+    for chunk in pd.read_csv(config['input']['parquet_file'], chunksize=chunk_size):
+        chunk_results = process_chunk(chunk, analyzer, config)
+        results.extend(chunk_results)
+        
+    # Convert results to DataFrame and save
+    df_results = pd.DataFrame(results)
+    df_results.to_parquet(config['output']['duckdb_file'])
+    
+    # Print results to console
+    print("PII Detection Results:")
+    print(df_results.to_string())
 
-    # Add custom entities
-    for entity, details in config['detection'].get('custom_entities', {}).items():
-        custom_recognizer = PatternRecognizer(
-            supported_entity=entity,
-            patterns=[re.compile(details['regex'])],
-            name=entity,
-            context=["AU", "Australia"],
-            supported_language="en"
-        )
-        registry.add_recognizer(custom_recognizer)
-
-    # Read input data
-    table = pq.read_table(config['input']['parquet_file'])
-    df = table.to_pandas()
-
-    # Function to analyze text for PII
-    def analyze_text(text):
-        results = analyzer.analyze(
-            text=str(text),
-            language='en',
-            entities=config['detection']['enabled_entities'] + list(config['detection'].get('custom_entities', {}).keys())
-        )
-        return [result.entity_type for result in results]
-
-    # Apply PII detection to each column
-    for column in df.columns:
-        df[f'{column}_pii'] = df[column].apply(analyze_text)
-
-    # Create DuckDB connection and table
-    conn = duckdb.connect(config['output']['duckdb_file'])
-    conn.register('df', df)
-    conn.execute("CREATE TABLE pii_data AS SELECT * FROM df")
-    conn.close()
-
-    print(f"PII detection complete. Results stored in {config['output']['duckdb_file']}")
-
-# Usage
-detect_pii('config.yml', './data/data_1.csv', 'pii_data.duckdb')
+if __name__ == "__main__":
+    main()

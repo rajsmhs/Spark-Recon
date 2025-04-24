@@ -254,3 +254,46 @@ if __name__ == "__main__":
     """
     
     process_text(sample_text)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def preprocess_text(raw_text):
+    """
+    Preprocess raw text:
+    1. Find numbers with 16-23 digits (including spaces and dashes)
+    2. Ensure space before such numbers
+    3. Remove spaces and dashes between digits
+    4. Return cleaned text and extracted numbers
+    """
+    # Store original positions and numbers
+    number_mapping = []
+    
+    def replace_number_with_clean(match):
+        original = match.group(0)
+        # Remove spaces and dashes between digits
+        cleaned = re.sub(r'[\s-]', '', original)
+        if 16 <= len(cleaned) <= 23:
+            number_mapping.append(cleaned)
+            # Ensure space before number if not at start of line
+            return f" {cleaned}"
+        return original
+
+    # Pattern for numbers with 16-23 digits (including spaces/dashes)
+    pattern = r'[\d\s-]{16,35}'
+    
+    # First pass: clean numbers and ensure spaces before them
+    cleaned_text = re.sub(pattern, replace_number_with_clean, raw_text)
+    
+    return cleaned_text, number_mapping

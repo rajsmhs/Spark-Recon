@@ -53,3 +53,66 @@ The CURRENCY_CONVERSION table is a critical component in our financial data infr
 The table supports both direct and inverse currency conversions, optimizing data storage while maintaining full functionality. It enables various financial operations including reporting, cross-border transactions, historical analysis, and regulatory compliance. Regular daily updates ensure current market rates are available for business operations, making it a reliable source for all currency-related calculations. Due to its critical role in financial accuracy, access to this table is carefully managed through appropriate security protocols.
 
 
+  ==========================
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue.dynamicframe import DynamicFrame
+from pyspark.context import SparkContext
+from pyspark.sql.functions import *
+
+# Initialize Glue context
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+
+# Define the existing table details
+DATABASE = "fulcrum"
+TABLE_NAME = "calendar_dim"
+S3_PATH = "s3://anzbank-testing/calendar_dim"  # Make sure this matches your actual path
+
+# Create the calendar data
+df = spark.sql("""
+    WITH dates_1900 AS (
+        SELECT explode(sequence(0, 
+            datediff(cast('2000-12-31' as date), cast('1900-01-01' as date)))) as n
+    ),
+    dates_2001 AS (
+        SELECT explode(sequence(0, 
+            datediff(cast('2100-12-31' as date), cast('2001-01-01' as date)))) as n
+    ),
+    all_dates AS (
+        SELECT date_add(cast('1900-01-01' as date), n) as generated_date
+        FROM dates_1900
+        UNION ALL
+        SELECT date_add(cast('2001-01-01' as date), n) as generated_date
+        FROM dates_2001
+    )
+    SELECT 
+        generated_date as CALENDAR_DT,
+        (cast(year(generated_date) as bigint) * 1000000) +
+        (cast(month(generated_date) as bigint) * 10000) +
+        (cast(day(generated_date) as bigint) * 100) +
+        (cast(extract(dow from generated_date) as bigint) + 11111) as SURROGATE_KEY,
+        CASE extract(dow from generated_date)
+            WHEN 0 THEN 'Sunday'
+            WHEN 1 THEN 'Monday'
+            WHEN 2 THEN 'Tuesday'
+            WHEN 3 THEN 'Wednesday'
+            WHEN 4 THEN 'Thursday'
+            WHEN 5 THEN 'Friday'
+            WHEN 6 THEN 'Saturday'
+        END as DAY_OF_WEEK_NM
+    FROM all_dates
+    ORDER BY CALENDAR_DT
+""")
+
+# Write directly using DataFrame API
+df.write \
+    .mode("overwrite") \
+    .format("parquet") \
+    .option("compression", "snappy") \
+    .save(S3_PATH)
+    
+job.commit()
+

@@ -56,9 +56,22 @@ The table supports both direct and inverse currency conversions, optimizing data
   ==========================
 from awsglue.context import GlueContext
 from awsglue.job import Job
-from awsglue.dynamicframe import DynamicFrame
+from awsglue.utils import getResolvedOptions
 from pyspark.context import SparkContext
 from pyspark.sql.functions import *
+import sys
+
+# Get job parameters
+args = getResolvedOptions(
+    sys.argv,
+    [
+        'calendar_start_date',
+        'calendar_end_date',
+        'database_name',
+        'table_name',
+        'warehouse_dir'  # Add this parameter
+    ]
+)
 
 # Initialize Glue context
 sc = SparkContext()
@@ -66,27 +79,46 @@ glueContext = GlueContext(sc)
 spark = glueContext.spark_session
 job = Job(glueContext)
 
-# Define the existing table details
-DATABASE = "fulcrum"
-TABLE_NAME = "calendar_dim"
-S3_PATH = "s3://anzbank-testing/calendar_dim"  # Make sure this matches your actual path
+# Define table identifier and location
+table_identifier = f"{args['database_name']}.{args['table_name']}"
+table_location = f"{args['warehouse_dir']}/{args['table_name']}"
+
+# Drop existing table if exists
+spark.sql(f"DROP TABLE IF EXISTS {table_identifier}")
+
+# Create table with Iceberg format
+create_table_sql = f"""
+    CREATE TABLE {table_identifier} (
+        CALENDAR_DT DATE,
+        SURROGATE_KEY BIGINT,
+        DAY_OF_WEEK_NM STRING
+    )
+    USING iceberg
+    TBLPROPERTIES (
+        'write.format.default' = 'parquet',
+        'write.parquet.compression-codec' = 'snappy'
+    )
+    LOCATION '{table_location}'
+"""
+
+spark.sql(create_table_sql)
 
 # Create the calendar data
-df = spark.sql("""
-    WITH dates_1900 AS (
+df = spark.sql(f"""
+    WITH dates_part1 AS (
         SELECT explode(sequence(0, 
-            datediff(cast('2000-12-31' as date), cast('1900-01-01' as date)))) as n
+            datediff(cast('2000-12-31' as date), cast('{args['calendar_start_date']}' as date)))) as n
     ),
-    dates_2001 AS (
+    dates_part2 AS (
         SELECT explode(sequence(0, 
-            datediff(cast('2100-12-31' as date), cast('2001-01-01' as date)))) as n
+            datediff(cast('{args['calendar_end_date']}' as date), cast('2001-01-01' as date)))) as n
     ),
     all_dates AS (
-        SELECT date_add(cast('1900-01-01' as date), n) as generated_date
-        FROM dates_1900
+        SELECT date_add(cast('{args['calendar_start_date']}' as date), n) as generated_date
+        FROM dates_part1
         UNION ALL
         SELECT date_add(cast('2001-01-01' as date), n) as generated_date
-        FROM dates_2001
+        FROM dates_part2
     )
     SELECT 
         generated_date as CALENDAR_DT,
@@ -107,12 +139,10 @@ df = spark.sql("""
     ORDER BY CALENDAR_DT
 """)
 
-# Write directly using DataFrame API
+# Write to table
 df.write \
-    .mode("overwrite") \
-    .format("parquet") \
-    .option("compression", "snappy") \
-    .save(S3_PATH)
-    
-job.commit()
+    .format("iceberg") \
+    .mode("append") \
+    .saveAsTable(table_identifier)
 
+job.commit()

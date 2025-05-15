@@ -685,3 +685,59 @@ prefix = 'data-contract'
 source_list, consumer_list = get_contract_lists_from_s3(bucket_name, prefix)
 print("Source contracts:", source_list)
 print("Consumer contracts:", consumer_list)
+
+
+
+
+
+import re
+
+def get_partition_details_from_create_table(spark, full_table_name):
+    """
+    Get partition details from SHOW CREATE TABLE
+    
+    Parameters:
+    - spark: SparkSession object
+    - full_table_name: Full table name (catalog.database.table)
+    """
+    try:
+        # Get CREATE TABLE statement
+        create_table_df = spark.sql(f"SHOW CREATE TABLE {full_table_name}")
+        create_table_stmt = create_table_df.collect()[0][0]
+        
+        # Extract PARTITIONED BY clause using regex
+        partition_match = re.search(r'PARTITIONED BY \((.*?)\)', create_table_stmt, re.IGNORECASE)
+        
+        if partition_match:
+            partition_columns = partition_match.group(1)
+            # Parse the partition columns and their data types
+            partition_info = [
+                col.strip().split() 
+                for col in partition_columns.split(',')
+            ]
+            
+            return {
+                "status": "success",
+                "is_partitioned": True,
+                "partition_details": partition_info,
+                "partition_columns": [col[0] for col in partition_info],
+                "message": f"Table is partitioned by: {partition_columns}"
+            }
+        else:
+            return {
+                "status": "success",
+                "is_partitioned": False,
+                "partition_details": [],
+                "partition_columns": [],
+                "message": "Table is not partitioned"
+            }
+            
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error getting partition details: {str(e)}"
+        }
+
+
+
+"CREATE TABLE AwsDataCatalog.dbt_athena.glue_trnx_table_partitioned (\n  transaction_id STRING,\n  customer_id INT,\n  transaction_date STRING,\n  store_id INT,\n  product_id INT,\n  product_category STRING,\n  quantity INT,\n  unit_price INT,\n  payment_method STRING,\n  discount_applied INT,\n  shipping_cost INT,\n  customer_rating INT,\n  delivery_status STRING,\n  customer_zipcode STRING,\n  store_location STRING,\n  is_online_purchase BOOLEAN,\n  transaction_status STRING)\nUSING iceberg\nPARTITIONED BY (transaction_date)\nLOCATION 's3://dbt-athena-vrajabhi-bucket/glue_transaction_data/transaction_data_partitioned'\nTBLPROPERTIES (\n  'current-snapshot-id' = '4888020685639059235',\n  'format' = 'iceberg/parquet',\n  'format-version' = '2',\n  'history.expire.max-snapshot-age-ms' = '259200000',\n  'write.delete.parquet.compression-codec' = 'zstd',\n  'write.object-storage.enabled' = 'true',\n  'write.object-storage.path' = 's3://dbt-athena-vrajabhi-bucket/glue_transaction_data/transaction_data_partitioned/data',\n  'write.parquet.compression-codec' = 'zstd')\n"

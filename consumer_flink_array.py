@@ -646,3 +646,42 @@ def __init__(self, batch_size=100, batch_interval=60):
         """
         if self.current_batch:
             self.process_batch()
+
+
+
+
+
+
+
+
+
+
+
+import boto3
+
+def get_contract_lists_from_s3(bucket_name, prefix):
+    s3_client = boto3.client('s3')
+    source_contracts = []
+    consumer_contracts = []
+    
+    # List objects in the bucket with the given prefix
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+    
+    for obj in response.get('Contents', []):
+        file_name = obj['Key'].split('/')[-1]  # Get just the filename
+        parts = file_name.split('-')
+        
+        if 'source' in file_name:
+            source_contracts.append(parts[1])
+        elif 'consumer' in file_name:
+            consumer_contracts.append(parts[1])
+            
+    return source_contracts, consumer_contracts
+
+# Example usage:
+bucket_name = 'adap-apse2-tbi-metadata-dev'
+prefix = 'data-contract'
+
+source_list, consumer_list = get_contract_lists_from_s3(bucket_name, prefix)
+print("Source contracts:", source_list)
+print("Consumer contracts:", consumer_list)

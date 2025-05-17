@@ -741,3 +741,42 @@ def get_partition_details_from_create_table(spark, full_table_name):
 
 
 "CREATE TABLE AwsDataCatalog.dbt_athena.glue_trnx_table_partitioned (\n  transaction_id STRING,\n  customer_id INT,\n  transaction_date STRING,\n  store_id INT,\n  product_id INT,\n  product_category STRING,\n  quantity INT,\n  unit_price INT,\n  payment_method STRING,\n  discount_applied INT,\n  shipping_cost INT,\n  customer_rating INT,\n  delivery_status STRING,\n  customer_zipcode STRING,\n  store_location STRING,\n  is_online_purchase BOOLEAN,\n  transaction_status STRING)\nUSING iceberg\nPARTITIONED BY (transaction_date)\nLOCATION 's3://dbt-athena-vrajabhi-bucket/glue_transaction_data/transaction_data_partitioned'\nTBLPROPERTIES (\n  'current-snapshot-id' = '4888020685639059235',\n  'format' = 'iceberg/parquet',\n  'format-version' = '2',\n  'history.expire.max-snapshot-age-ms' = '259200000',\n  'write.delete.parquet.compression-codec' = 'zstd',\n  'write.object-storage.enabled' = 'true',\n  'write.object-storage.path' = 's3://dbt-athena-vrajabhi-bucket/glue_transaction_data/transaction_data_partitioned/data',\n  'write.parquet.compression-codec' = 'zstd')\n"
+
+
+
+resource "null_resource" "trigger_glue_job_with_status_check" {
+  provisioner "local-exec" {
+    command = <<EOF
+      JOB_RUN_ID=$(aws glue start-job-run \
+        --job-name "my-glue-job-name" \
+        --region "us-east-1" \
+        --arguments '{"--custom-arg1":"value1"}' \
+        --timeout 2880 \
+        --query 'JobRunId' \
+        --output text)
+      
+      echo "Started Glue job with Run ID: $JOB_RUN_ID"
+      
+      # Wait for job completion
+      while true; do
+        STATUS=$(aws glue get-job-run \
+          --job-name "my-glue-job-name" \
+          --run-id "$JOB_RUN_ID" \
+          --query 'JobRun.JobRunState' \
+          --output text)
+          
+        echo "Current job status: $STATUS"
+        
+        if [ "$STATUS" = "SUCCEEDED" ]; then
+          echo "Job completed successfully"
+          break
+        elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "ERROR" ]; then
+          echo "Job failed with status: $STATUS"
+          exit 1
+        fi
+        
+        sleep 30  # Check every 30 seconds
+      done
+    EOF
+  }
+}

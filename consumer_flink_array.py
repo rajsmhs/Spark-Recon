@@ -780,3 +780,56 @@ resource "null_resource" "trigger_glue_job_with_status_check" {
     EOF
   }
 }
+
+
+
+
+
+resource "null_resource" "trigger_glue_job_with_status_check" {
+  triggers = {
+    always_run = timestamp()
+  }
+
+  provisioner "local-exec" {
+    command = <<EOF
+      # Start the Glue job and store the run ID
+      JOB_RUN_ID=$(aws glue start-job-run \
+        --job-name "${var.glue_job_name}" \
+        --region "${var.aws_region}" \
+        --query 'JobRunId' \
+        --output text)
+
+      echo "Started Glue job with Run ID: $JOB_RUN_ID"
+      
+      # Wait for the job ID to be available
+      sleep 10
+
+      # Check job status in a loop
+      while true; do
+        # Get the current status
+        STATUS=$(aws glue get-job-run \
+          --job-name "${var.glue_job_name}" \
+          --run-id "$JOB_RUN_ID" \
+          --region "${var.aws_region}" \
+          --query 'JobRun.JobRunState' \
+          --output text 2>/dev/null || echo "PENDING")
+          
+        echo "Current job status: $STATUS"
+        
+        # Check the status and act accordingly
+        if [ "$STATUS" = "SUCCEEDED" ]; then
+          echo "Job completed successfully"
+          exit 0
+        elif [ "$STATUS" = "FAILED" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "ERROR" ]; then
+          echo "Job failed with status: $STATUS"
+          exit 1
+        elif [ "$STATUS" = "PENDING" ]; then
+          echo "Waiting for job status..."
+        fi
+        
+        # Wait before next check
+        sleep 30
+      done
+    EOF
+  }
+}

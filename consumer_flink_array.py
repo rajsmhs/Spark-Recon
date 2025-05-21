@@ -827,3 +827,18 @@ resource "null_resource" "trigger_glue_job_with_status_check" {
 EOF
   }
 }
+
+resource "null_resource" "contract_changes" {
+  triggers = {
+    dir_sha1 = join("", [
+      for folder in ["source", "consumer"] : join("", [
+        for c in fileset("${path.module}/../data-contracts/${folder}", "*contract.yaml") :
+          sha1(file("${path.module}/../data-contracts/${folder}/${c}"))
+      ])
+    ])
+  }
+
+  provisioner "local-exec" {
+    command = "echo 'Contracts have changed. Trigger timestamp: ${timestamp()}'"
+  }
+}

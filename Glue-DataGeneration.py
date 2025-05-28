@@ -214,3 +214,101 @@ print(f"Writing data to {S3_PATH}...")
  .partitionBy("load_date")
  .format("parquet")
  .save(S3_PATH))
+
+
+
+
+
+
+from airflow import DAG
+from airflow.providers.amazon.aws.operators.glue import AwsGlueJobOperator
+from airflow.providers.amazon.aws.sensors.glue import AwsGlueJobSensor
+from airflow.operators.python import PythonOperator
+from datetime import datetime, timedelta
+import boto3
+
+default_args = {
+    'owner': 'airflow',
+    'depends_on_past': False,
+    'start_date': datetime(2025, 5, 28),
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+dag = DAG(
+    'glue_job_pipeline',
+    default_args=default_args,
+    schedule_interval=timedelta(days=1),
+)
+
+def get_glue_job_outputs(**context):
+    glue_client = boto3.client('glue')
+    
+    # Get the job run ID from the previous task
+    job_run_id = context['task_instance'].xcom_pull(task_ids='glue_job_1', key='return_value')
+    job_name = 'your_first_glue_job_name'
+    
+    # Get job run details
+    response = glue_client.get_job_run(
+        JobName=job_name,
+        RunId=job_run_id
+    )
+    
+    # Extract the output locations from job arguments
+    job_run = response['JobRun']
+    
+    # Get the output directory from job parameters or arguments
+    output_files = []
+    
+    # If you have configured job metrics
+    if 'Statistics' in job_run:
+        written_files = job_run['Statistics'].get('WrittenFiles', [])
+        output_files.extend(written_files)
+    
+    # You can also get from job parameters if you've explicitly set them
+    if 'Arguments' in job_run:
+        output_location = job_run['Arguments'].get('--output_location', '')
+        if output_location:
+            output_files.append(output_location)
+    
+    context['task_instance'].xcom_push(key='output_files', value=output_files)
+    return output_files
+
+# First Glue job
+glue_job_1 = AwsGlueJobOperator(
+    task_id='glue_job_1',
+    job_name='your_first_glue_job_name',
+    script_location='s3://your-bucket/scripts/first_job_script.py',
+    iam_role_name='your-glue-role',
+    dag=dag,
+)
+
+# Sensor to wait for the first Glue job to complete
+glue_job_1_sensor = AwsGlueJobSensor(
+    task_id='glue_job_1_sensor',
+    job_name='your_first_glue_job_name',
+    run_id="{{ task_instance.xcom_pull(task_ids='glue_job_1', key='return_value') }}",
+    dag=dag,
+)
+
+# Task to get Glue job outputs
+get_outputs_task = PythonOperator(
+    task_id='get_glue_outputs',
+    python_callable=get_glue_job_outputs,
+    provide_context=True,
+    dag=dag,
+)
+
+# Second Glue job
+glue_job_2 = AwsGlueJobOperator(
+    task_id='glue_job_2',
+    job_name='your_second_glue_job_name',
+    script_location='s3://your-bucket/scripts/second_job_script.py',
+    iam_role_name='your-glue-role',
+    script_args={
+        '--input_files': "{{ task_instance.xcom_pull(task_ids='get_glue_outputs', key='output_files') }}"
+    },
+    dag=dag,
+)
+
+glue_job_1 >> glue_job_1_sensor >> get_outputs_task >> glue_job_2

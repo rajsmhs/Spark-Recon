@@ -312,3 +312,88 @@ glue_job_2 = AwsGlueJobOperator(
 )
 
 glue_job_1 >> glue_job_1_sensor >> get_outputs_task >> glue_job_2
+
+
+
+
+
+
+
+
+
+
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.operators.python import PythonOperator
+from typing import Dict, List
+import logging
+
+def list_s3_files(
+    bucket_name: str,
+    prefix: str,
+    **context
+) -> Dict:
+    """
+    Lists files from S3 bucket/prefix and returns formatted dictionary
+    
+    Args:
+        bucket_name: Name of the S3 bucket
+        prefix: S3 prefix/folder path
+    
+    Returns:
+        Dictionary containing status code, prefix, file list and bucket name
+    """
+    try:
+        # Initialize S3 Hook
+        s3_hook = S3Hook(aws_conn_id='aws_default')
+        
+        # List files from S3
+        s3_keys = s3_hook.list_keys(
+            bucket_name=bucket_name,
+            prefix=prefix
+        )
+        
+        # Filter out None values and create response dictionary
+        s3_keys = [key for key in s3_keys if key is not None]
+        
+        response_dict = {
+            "statusCode": 200,
+            "prefix": prefix,
+            "file_list": s3_keys,
+            "bucket": bucket_name
+        }
+            
+        # Log the number of files found    
+        logging.info(f"Found {len(s3_keys)} files in s3://{bucket_name}/{prefix}")
+        
+        # Push to XCom
+        context['task_instance'].xcom_push(
+            key='ingest_file_list_info',
+            value=response_dict
+        )
+        
+        return response_dict
+        
+    except Exception as e:
+        logging.error(f"Error listing S3 files: {str(e)}")
+        raise
+
+# Usage in DAG
+list_files_task = PythonOperator(
+    task_id='list_s3_files',
+    python_callable=list_s3_files,
+    op_kwargs={
+        'bucket_name': 'idap-apse2-zzz-tbi-raw-feature-ft-ida3522',
+        'prefix': 'fulcrum/ctm/ctm_au_co_tandemvar'
+    },
+    provide_context=True,
+    dag=dag
+)
+
+# To retrieve the file information in downstream tasks:
+def downstream_task(**context):
+    file_info = context['task_instance'].xcom_pull(
+        task_ids='list_s3_files',
+        key='ingest_file_list_info'
+    )
+    # Process files...
+    print(f"File list info: {file_info}")

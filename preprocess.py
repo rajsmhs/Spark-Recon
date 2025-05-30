@@ -30,7 +30,6 @@ def estimate_partitions_sampling(df, target_size_mb=125, sample_ratio=0.01):
     return 1
 
 
-
 def separate_and_map_files(file_list):
     csv_files = []
     file_dict = {}
@@ -133,10 +132,14 @@ def process_csv_files(spark, file_list, output_path, batch_size=100):
                   .withColumn("input_file", input_file_name())
                   .withColumn("src_strt_trans", date_udf(input_file_name()))
                  )
-            
+            print(df.count())
+            num_part = estimate_partitions_sampling(df)
+            print(num_part)
             # Show results
-            print("\nResulting DataFrame:")
-            df.select("input_file", "src_strt_trans").show(10, truncate=False)
+            # print("\nResulting DataFrame:")
+            # df.select("input_file", "src_strt_trans").show(10, truncate=False)
+            # output_data = "s3://adap-apse2-tbi-metadata-dev/output_data/runid4/"
+            # df.coalesce(num_part).write.format('csv').mode("overwrite").option("compression", "bzip2").save(output_data)
             
         except Exception as e:
             print(f"Error processing batch starting at index {i}: {str(e)}")

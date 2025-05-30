@@ -5,6 +5,32 @@ from datetime import datetime
 import boto3
 import os
 
+def estimate_partitions_sampling(df, target_size_mb=125, sample_ratio=0.01):
+    """
+    Estimate partitions using sampling
+    """
+    # Take sample
+    sample_df = df.sample(withReplacement=False, fraction=sample_ratio)
+    
+    # Calculate average row size from sample
+    sample_count = sample_df.count()
+    if sample_count > 0:
+        sample_size = sample_df.rdd.mapPartitions(
+            lambda x: [sum(len(str(row)) for row in x)]
+        ).sum()
+        avg_row_size = sample_size / sample_count
+        
+        # Extrapolate to full dataset
+        total_count = df.count()
+        estimated_size = total_count * avg_row_size
+        
+        # Calculate partitions
+        num_partitions = max(1, int(estimated_size // (target_size_mb * 1024 * 1024)))
+        return num_partitions
+    return 1
+
+
+
 def separate_and_map_files(file_list):
     csv_files = []
     file_dict = {}

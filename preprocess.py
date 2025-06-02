@@ -318,3 +318,21 @@ def process_csv_files(spark, file_list, output_path):
 
 
 process_csv_files(spark, file_list_out, "hhh")
+
+
+
+
+import re
+
+def check_data_source(string, data_source):
+    pattern = r'\b' + re.escape(data_source) + r'\b'
+    return bool(re.search(pattern, string, re.IGNORECASE))
+
+# Usage
+string1 = "The data source is Fulcrum"
+string2 = "The data source is fulcrumsens"
+data_source = "fulcrum"
+
+print(check_data_source(string1, data_source))  # True
+print(check_data_source(string2, data_source))  # False
+

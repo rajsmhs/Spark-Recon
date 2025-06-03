@@ -874,3 +874,38 @@ def get_contract_lists_from_s3(bucket_name, prefix, datasource):
                     consumer_contracts.append(parts[1])
     
     return source_contracts, consumer_contracts
+
+
+
+
+
+
+import os
+
+def get_tag_files_mapping(csv_bz2_files):
+    """
+    Args:
+        csv_bz2_files (list): List of csv.bz2 files
+    
+    Returns:
+        tuple: (list of csv.bz2 files, dictionary mapping csv.bz2 files to tag files)
+        
+    Raises:
+        FileNotFoundError: If tag file doesn't exist for a csv.bz2 file
+    """
+    tag_mapping = {}
+    valid_csv_files = []
+    
+    for csv_bz2_file in csv_bz2_files:
+        # Get base name by removing .csv.bz2 extensions
+        base_name = os.path.splitext(os.path.splitext(csv_bz2_file)[0])[0]
+        tag_file = f"{base_name}.tag"
+        
+        if not os.path.exists(tag_file):
+            raise FileNotFoundError(f"Tag file does not exist for {csv_bz2_file}")
+        
+        valid_csv_files.append(csv_bz2_file)
+        tag_mapping[csv_bz2_file] = tag_file
+    
+    return valid_csv_files, tag_mapping
+

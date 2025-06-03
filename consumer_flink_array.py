@@ -842,3 +842,35 @@ resource "null_resource" "contract_changes" {
     command = "echo 'Contracts have changed. Trigger timestamp: ${timestamp()}'"
   }
 }
+
+
+
+
+
+
+
+def check_data_source(filepath, datasource):
+    pattern = r'\b' + re.escape(datasource) + r'\b'
+    return bool(re.search(pattern, filepath, re.IGNORECASE))
+
+
+def get_contract_lists_from_s3(bucket_name, prefix, datasource):
+    s3_client = boto3.client('s3')
+    source_contracts = []
+    consumer_contracts = []
+    
+    # List objects in the bucket with the given prefix
+    response = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+    for obj in response.get('Contents', []):
+        datasource_flag= check_data_source(obj['Key'], datasource)
+        if datasource_flag == True:
+            if "contract.yaml" in obj['Key']:
+                file_name = obj['Key'].split('/')[-1]
+                if 'source' in file_name:
+                    parts = file_name.split('-')
+                    source_contracts.append(parts[1])
+                elif 'consumer' in file_name:
+                    parts = file_name.split('-')
+                    consumer_contracts.append(parts[1])
+    
+    return source_contracts, consumer_contracts

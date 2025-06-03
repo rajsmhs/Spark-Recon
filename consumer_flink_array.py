@@ -909,3 +909,34 @@ def get_tag_files_mapping(csv_bz2_files):
     
     return valid_csv_files, tag_mapping
 
+
+
+import re
+def validate_pattern(value: str, pattern: str) -> bool:
+    """
+    Validates if value matches pattern, raises exception if invalid.
+    
+    Args:
+        value: String to check
+        pattern: Regular expression pattern
+    
+    Returns:
+        bool: True if valid
+        
+    Raises:
+        PatternError: If validation fails
+    """
+    
+    patterns = {
+        'date': r'^\d{4}-\d{2}-\d{2}$',
+        'number': r'^\d+$'
+    }
+    
+    if not value or not isinstance(value, str):
+        raise PatternError("Value cannot be empty or non-string")
+        
+    if not re.match(pattern, value):
+        raise PatternError(f"Value does not match pattern: {value}")
+        
+    return True
+ 

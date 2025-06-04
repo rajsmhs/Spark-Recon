@@ -336,3 +336,134 @@ data_source = "fulcrum"
 print(check_data_source(string1, data_source))  # True
 print(check_data_source(string2, data_source))  # False
 
+
+
+
+
+import json
+from pyspark.sql import DataFrame
+import boto3
+from typing import List, Dict
+import time
+from botocore.exceptions import ClientError, BotoCoreError
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def list_s3_files(output_data: str) -> tuple:
+    """
+    List all files in an S3 bucket with given prefix.
+    
+    Args:
+        output_data (str): S3 path
+        
+    Returns:
+        tuple: (list of files, bucket name, path prefix)
+        
+    Raises:
+        ValueError: If the S3 path format is invalid
+        ClientError: If there's an issue with S3 operations
+    """
+    try:
+        # Validate input
+        if not output_data:
+            raise ValueError("Empty S3 path provided")
+
+        # Get bucket name
+        if output_data.startswith('s3://'):
+            bucket_name = output_data.split('//')[1].split('/')[0]
+            path_prefix = '/'.join(output_data.split('//')[1].split('/')[1:])
+        else:
+            bucket_name = output_data.split('/')[0]
+            path_prefix = '/'.join(output_data.split('/')[1:])
+
+        if not bucket_name:
+            raise ValueError("Invalid S3 path format: Could not extract bucket name")
+
+        files = []
+        s3_client = boto3.client('s3')
+        paginator = s3_client.get_paginator('list_objects_v2')
+        
+        try:
+            for page in paginator.paginate(Bucket=bucket_name, Prefix=path_prefix):
+                if 'Contents' in page:
+                    for obj in page['Contents']:
+                        if not obj['Key'].endswith('/'):  # Exclude directories
+                            files.append(f"s3://{bucket_name}/{obj['Key']}")
+            
+            return files, bucket_name, path_prefix
+
+        except ClientError as e:
+            logger.error(f"Error accessing S3: {str(e)}")
+            raise
+
+    except Exception as e:
+        logger.error(f"Unexpected error in list_s3_files: {str(e)}")
+        raise
+
+def generate_manifest(files: List[str]) -> Dict:
+    """
+    Generate manifest content.
+    
+    Args:
+        files (List[str]): List of file paths
+        
+    Returns:
+        Dict: Manifest content
+        
+    Raises:
+        ValueError: If files list is empty
+    """
+    try:
+        if not files:
+            raise ValueError("No files provided for manifest generation")
+        
+        return {"file_list": files}
+    
+    except Exception as e:
+        logger.error(f"Error generating manifest: {str(e)}")
+        raise
+
+def write_manifest_to_s3(output_path: str) -> None:
+    """
+    Write manifest file to S3.
+    
+    Args:
+        output_path (str): S3 path where manifest should be written
+        
+    Raises:
+        ValueError: If output path is invalid
+        ClientError: If there's an issue with S3 operations
+    """
+    try:
+        if not output_path:
+            raise ValueError("Empty output path provided")
+
+        file_list, bucket_name, path_prefix = list_s3_files(output_path)
+        logger.info(f"Found {len(file_list)} files to include in manifest")
+        
+        manifest_content = generate_manifest(file_list)
+        logger.info("Generated manifest content")
+
+        s3_client = boto3.client('s3')
+        manifest_key = f"{path_prefix}manifest/manifest.json"
+        
+        try:
+            s3_client.put_object(
+                Bucket=bucket_name,
+                Key=manifest_key,
+                Body=json.dumps(manifest_content, indent=2)
+            )
+            logger.info(f"Successfully wrote manifest to s3://{bucket_name}/{manifest_key}")
+            
+        except ClientError as e:
+            logger.error(f"Error writing manifest to S3: {str(e)}")
+            raise
+
+    except Exception as e:
+        logger.error(f"Error in write_manifest_to_s3: {str(e)}")
+        raise
+
+

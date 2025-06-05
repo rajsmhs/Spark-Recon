@@ -467,3 +467,81 @@ def write_manifest_to_s3(output_path: str) -> None:
         raise
 
 
+
+
+
+
+import boto3
+import json
+from botocore.exceptions import ClientError
+import logging
+from typing import List, Optional
+from urllib.parse import urlparse
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+def read_manifest_json(s3_manifest_path):
+    """
+    List all files in an S3 bucket with given prefix.
+    
+    Args:
+        output_data (str): S3 path
+        
+    Returns:
+        tuple: (list of files, bucket name, path prefix)
+        
+    Raises:
+        ValueError: If the S3 path format is invalid
+        ClientError: If there's an issue with S3 operations
+    """
+    try:
+        # Validate input
+        s3_client = boto3.client('s3')
+        if not s3_manifest_path:
+            raise ValueError("Empty S3 path provided")
+
+        # Get bucket name
+        if s3_manifest_path.startswith('s3://'):
+            bucket_name = s3_manifest_path.split('//')[1].split('/')[0]
+            path_prefix = '/'.join(s3_manifest_path.split('//')[1].split('/')[1:])
+        else:
+            bucket_name = s3_manifest_path.split('/')[0]
+            path_prefix = '/'.join(s3_manifest_path.split('/')[1:])
+
+        if not bucket_name:
+            raise ValueError("Invalid S3 path format: Could not extract bucket name")
+            
+        
+        response = s3_client.get_object(Bucket=bucket_name, Key=path_prefix)
+            
+        # Read the content
+        manifest_content = json.loads(response['Body'].read().decode('utf-8'))
+
+        # Validate manifest structure
+        if not isinstance(manifest_content, dict):
+            raise ValueError("Manifest content is not a dictionary")
+
+        if 'file_list' not in manifest_content:
+            raise ValueError("Manifest does not contain 'file_list' key")
+
+        if not isinstance(manifest_content['file_list'], list):
+            raise ValueError("file_list is not a list")
+
+        logger.info(f"Successfully read manifest containing {len(manifest_content['file_list'])} files")
+        return manifest_content['file_list']
+            
+    except ClientError as e:
+            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            if error_code == 'NoSuchKey':
+                logger.error(f"Manifest file not found: {manifest_path}")
+            elif error_code == 'NoSuchBucket':
+                logger.error(f"Bucket not found: {bucket_name}")
+            else:
+                logger.error(f"AWS S3 error: {str(e)}")
+            raise
+            
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in manifest file: {str(e)}")
+        raise

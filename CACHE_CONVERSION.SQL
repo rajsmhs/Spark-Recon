@@ -61,3 +61,27 @@ CASE
     WHEN CR_INT_LMT_6 <> '' AND CR_INT_PTS_6 >= 0 
         THEN TRIM(CAST(FORMAT('%.5f', CR_INT_PTS_6) AS VARCHAR(10)))
 END AS CR_INT_LIMIT_POINTS_6
+
+
+
+CASE
+    WHEN CR_INT_LMT_7 != '.00' 
+    OR CR_INT_LMT_6 = CR_INT_LMT_7
+    OR CR_INT_LMT_7 IS NULL THEN ''
+    ELSE CONCAT(
+        TRIM(CAST(FORMAT('%.2f', CR_INT_LMT_6 + 0.01) AS VARCHAR(50))), 
+        ' to ',
+        TRIM(CAST(FORMAT('%.2f', CR_INT_LMT_7) AS VARCHAR(50)))
+    )
+END AS CR_INT_LMT_7,
+
+-- 2nd iteration
+CASE
+    WHEN CR_INT_LMT_7 = '' THEN
+        CASE
+            WHEN CR_INT_LMT_7 <> ''
+            AND CR_INT_PTS_7 < 0 THEN TRIM(CAST(FORMAT('%.5f', CR_INT_PTS_7) AS VARCHAR(10)))
+            WHEN CR_INT_LMT_7 <> ''
+            AND CR_INT_PTS_7 >= 0 THEN TRIM(CAST(FORMAT('%.5f', CR_INT_PTS_7) AS VARCHAR(10)))
+        END
+END AS CR_INT_LIMIT_POINTS_7

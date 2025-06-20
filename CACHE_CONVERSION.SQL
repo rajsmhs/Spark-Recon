@@ -1,0 +1,10 @@
+CASE
+    WHEN CR_INT_LMT_4 = '.00' 
+        OR CR_INT_LMT_3 = CR_INT_LMT_4 
+        OR CR_INT_LMT_4 IS NULL THEN ''
+    ELSE CONCAT(
+        TRIM(CAST(FORMAT('%.2f', CR_INT_LMT_3 + 0.01) AS VARCHAR(50))),
+        ' to ',
+        TRIM(CAST(FORMAT('%.2f', CR_INT_LMT_4) AS VARCHAR(50)))
+    )
+END AS CR_INT_LMT_4

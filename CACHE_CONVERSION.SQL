@@ -414,3 +414,26 @@ AND NOT EXISTS
         DATE_FORMAT(CAST('9999-12-31' AS TIMESTAMP), '%Y-%m-%d')
     AND DIM.CRNT_ROW_FLG = 'Y'
 )
+
+
+
+INSERT INTO ${database_name}.cb_cache_ac_tmp (
+    ac_nbr,
+    ac_coid,
+    effv_fr_dt,
+    tmp_flg
+)
+SELECT 
+    STG.ac_nbr,
+    STG.ac_coid,
+    STG.effv_strt_dts,
+    '4' AS tmp_flg
+FROM ${database_name}.cb_cache_ac_stg STG
+WHERE STG.src_dlet_flag = 1
+AND NOT EXISTS (
+    SELECT 1 
+    FROM ${database_name}.cb_cache_ac_dim DIM
+    WHERE STG.ac_nbr = DIM.ac_nbr 
+    AND STG.ac_coid = DIM.ac_coid
+    AND date_format(DIM.effv_end_dts, '%Y-%m-%d') = date_format(date '9999-12-31', '%Y-%m-%d')
+);

@@ -437,3 +437,45 @@ AND NOT EXISTS (
     AND STG.ac_coid = DIM.ac_coid
     AND date_format(DIM.effv_end_dts, '%Y-%m-%d') = date_format(date '9999-12-31', '%Y-%m-%d')
 );
+
+
+
+
+
+
+
+
+
+
+WITH date_range AS (
+    SELECT DISTINCT calendar_date 
+    FROM sys_calendar.calendar
+    WHERE calendar_date > (SELECT MAX(calendar_date) FROM stbt_vm_db_name.currency_conversion) 
+    AND calendar_date <= CURRENT_DATE
+),
+currency_pairs AS (
+    SELECT DISTINCT from_ctr, to_ctr
+    FROM stage_tbl_db_name.ppsize_crt_fx_rate_tbl
+    WHERE fx_rate_indx = 'EXCHANGE' AND fx_type = 'CREXT'
+    AND effdt BETWEEN DATE '2011-01-01' AND CURRENT_DATE
+    AND src_dlet_flag = 0 AND eof_src_nbr = 1
+    AND src_end_ts = TIMESTAMP '9999-12-31 23:59:59.999'
+),
+-- Generate row numbers for both tables
+numbered_dates AS (
+    SELECT calendar_date, ROW_NUMBER() OVER (ORDER BY calendar_date) as rn
+    FROM date_range
+),
+numbered_pairs AS (
+    SELECT from_ctr, to_ctr, ROW_NUMBER() OVER (ORDER BY from_ctr, to_ctr) as rn
+    FROM currency_pairs
+),
+-- Create cartesian product using recursive approach
+cartesian AS (
+    SELECT d.calendar_date, p.from_ctr, p.to_ctr
+    FROM numbered_dates d
+    JOIN numbered_pairs p ON 1=1  -- This creates the cross join
+    WHERE d.rn <= 100  -- Limit to first 100 dates at a time
+)
+INSERT INTO stbt_vm_db_name.fx_rates_1
+SELECT calendar_date, from_ctr, to_ctr FROM cartesian;

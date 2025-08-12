@@ -1,104 +1,53 @@
 {{ config(
-    materialized='incremental',
-    table_type='iceberg',
-    incremental_strategy='append'
+    materialized='table',
+    table_type='iceberg'
 ) }}
 
-
-{% set max_value = 0 %}
+{% set table_count = 0 %}
+{% set target_table = source('your_source_name', 'your_table_name') %}
 
 {% if execute %}
-    {% set query %}
-        SELECT coalesce(MAX(acc_sk), 0) as max_value
-        FROM {{ this }}
+    {% set count_query %}
+        SELECT COUNT(*) as table_count
+        FROM {{ target_table }}
     {% endset %}
     
-    {% if adapter.get_relation(database=this.database, schema=this.schema, identifier=this.identifier) %}
-        {% set results = run_query(query) %}
-        {% if results %}
-            {% set max_value = results.columns[0].values()[0] %}
-        {% endif %}
+    {% set results = run_query(count_query) %}
+    {% if results %}
+        {% set table_count = results.columns[0].values()[0] %}
     {% endif %}
 {% endif %}
 
-{% if max_value == 0 %}
-    {# First run - no existing data #}
-    with trans_data as (
-        select
-        transaction_id 
-        ,customer_id
-        ,CAST(CAST(CAST(transaction_date AS timestamp) AS DATE) AS VARCHAR) as transaction_date
-        ,store_id
-        ,product_id
-        ,product_category
-        ,quantity
-        ,unit_price
-        ,payment_method
-        ,discount_applied
-        ,shipping_cost
-        ,customer_rating
-        ,delivery_status
-        ,customer_zipcode
-        ,store_location
-        ,is_online_purchase
-        ,transaction_status
-        ,row_number() over (order by transaction_id) as acc_sk
-        from "union"
-    )
-{% elif max_value < 1000 %}
-    {# Small dataset - use simple increment #}
-    with trans_data as (
-        select
-        transaction_id 
-        ,customer_id
-        ,CAST(CAST(CAST(transaction_date AS timestamp) AS DATE) AS VARCHAR) as transaction_date
-        ,store_id
-        ,product_id
-        ,product_category
-        ,quantity
-        ,unit_price
-        ,payment_method
-        ,discount_applied
-        ,shipping_cost
-        ,customer_rating
-        ,delivery_status
-        ,customer_zipcode
-        ,store_location
-        ,is_online_purchase
-        ,transaction_status
-        ,(row_number() over (order by transaction_id) + {{ max_value }}) as acc_sk
-        from "union"
-    )
+{% if table_count == 0 %}
+    {# Empty table - return default message #}
+    select 
+        'NO_DATA' as status,
+        0 as record_count,
+        CURRENT_TIMESTAMP as check_time
+        
+{% elif table_count <= 5000 %}
+    {# Small table - detailed analysis #}
+    select
+        transaction_id,
+        customer_id,
+        transaction_date,
+        unit_price,
+        quantity,
+        (unit_price * quantity) as total_amount,
+        'DETAILED_VIEW' as analysis_type
+    from {{ target_table }}
+    order by transaction_date desc
+    
 {% else %}
-    {# Large dataset - use batch processing #}
-    with trans_data as (
-        select
-        transaction_id 
-        ,customer_id
-        ,CAST(CAST(CAST(transaction_date AS timestamp) AS DATE) AS VARCHAR) as transaction_date
-        ,store_id
-        ,product_id
-        ,product_category
-        ,quantity
-        ,unit_price
-        ,payment_method
-        ,discount_applied
-        ,shipping_cost
-        ,customer_rating
-        ,delivery_status
-        ,customer_zipcode
-        ,store_location
-        ,is_online_purchase
-        ,transaction_status
-        ,(row_number() over (order by transaction_date, transaction_id) + {{ max_value }}) as acc_sk
-        from "union"
-        where transaction_date >= '2024-01-01'  -- Filter for recent data only
-    )
+    {# Large table - aggregated view #}
+    select
+        DATE_TRUNC('month', CAST(transaction_date AS DATE)) as month,
+        COUNT(*) as transaction_count,
+        SUM(unit_price * quantity) as total_revenue,
+        AVG(unit_price) as avg_unit_price,
+        'SUMMARY_VIEW' as analysis_type
+    from {{ target_table }}
+    group by DATE_TRUNC('month', CAST(transaction_date AS DATE))
+    order by month desc
+    
 {% endif %}
-
-with final_data as (
-select * from trans_data
-)
-
-select *
-from final_data
